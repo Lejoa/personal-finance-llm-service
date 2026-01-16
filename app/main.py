@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from app.api.financial import router as financial_router
 
 app = FastAPI(
     title="LLM Financial Service",
@@ -12,8 +13,9 @@ def health_check():
         "message": "LLM service is running"
     }
 
-@app.get("/hello")
-def hello():
-    return {
-        "message": "Hola mundo desde el servicio LLM 🚀"
-    }
+@app.get("/debug/routes")
+def debug_routes():
+    return [route.path for route in app.routes]
+
+
+app.include_router(financial_router)
