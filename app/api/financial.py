@@ -24,7 +24,7 @@ def get_financial_insights(payload: FinancialInsightsRequest):
         else "Ninguno"
     )
 
-    response_text = chain.invoke({
+    llm_response = chain.invoke({
         "financial_level": payload.user_context.financial_level,
         "total_income": payload.summary.total_income,
         "total_expenses": payload.summary.total_expenses,
@@ -33,8 +33,17 @@ def get_financial_insights(payload: FinancialInsightsRequest):
         "over_budget": over_budget,
     })
 
+    insight_message = (
+        llm_response.content
+        if hasattr(llm_response, "content")
+        else str(llm_response)
+    )
+
     insights = [
-        Insight(type="education", message=response_text)
+        Insight(
+            type="education",
+            message=insight_message
+        )
     ]
 
     return FinancialInsightsResponse(

@@ -1,6 +1,8 @@
-from langchain_core.language_models.fake import FakeListLLM
-from langchain_core.prompts import PromptTemplate
+import os
 from pathlib import Path
+
+from langchain_core.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI 
 
 
 def build_financial_chain():
@@ -20,11 +22,9 @@ def build_financial_chain():
         template=prompt_text,
     )
 
-    llm = FakeListLLM(
-        responses=[
-            "Un fondo de emergencia es un ahorro que te protege ante imprevistos. "
-            "Idealmente cubre entre 3 y 6 meses de tus gastos básicos."
-        ]
+    llm = ChatOpenAI(
+        model=os.getenv("LLM_MODEL", "gpt-4o-mini"),
+        temperature=0.3,
     )
 
     chain = prompt | llm
