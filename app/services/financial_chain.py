@@ -2,11 +2,45 @@ import os
 from pathlib import Path
 
 from langchain_core.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI 
+from langchain_core.language_models.chat_models import BaseChatModel
+
+
+def get_llm_provider() -> BaseChatModel:
+    """
+    Factory function que retorna el proveedor LLM configurado.
+    Soporta OpenAI y Ollama basado en variables de entorno.
+    """
+    provider = os.getenv("LLM_PROVIDER", "openai").lower()
+
+    if provider == "ollama":
+        from langchain_ollama import ChatOllama
+
+        return ChatOllama(
+            model=os.getenv("LLM_MODEL", "gemma2:2b"),
+            base_url=os.getenv("OLLAMA_BASE_URL", "http://ollama:11434"),
+            temperature=float(os.getenv("LLM_TEMPERATURE", "0.3")),
+            num_ctx=int(os.getenv("OLLAMA_NUM_CTX", "4096")),
+        )
+
+    elif provider == "openai":
+        from langchain_openai import ChatOpenAI
+
+        return ChatOpenAI(
+            model=os.getenv("LLM_MODEL", "gpt-4o-mini"),
+            temperature=float(os.getenv("LLM_TEMPERATURE", "0.3")),
+        )
+
+    else:
+        raise ValueError(
+            f"LLM_PROVIDER '{provider}' no soportado. "
+            "Usa 'openai' o 'ollama'."
+        )
 
 
 def build_financial_chain():
-
+    """
+    Construye la cadena LangChain para insights financieros.
+    """
     prompt_path = Path("app/prompts/financial_education.txt")
     prompt_text = prompt_path.read_text(encoding="utf-8")
 
@@ -22,11 +56,7 @@ def build_financial_chain():
         template=prompt_text,
     )
 
-    llm = ChatOpenAI(
-        model=os.getenv("LLM_MODEL", "gpt-4o-mini"),
-        temperature=0.3,
-    )
-
+    llm = get_llm_provider()
     chain = prompt | llm
 
     return chain
