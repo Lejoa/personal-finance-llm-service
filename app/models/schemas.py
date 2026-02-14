@@ -35,3 +35,20 @@ class Insight(BaseModel):
 class FinancialInsightsResponse(BaseModel):
     insights: List[Insight]
     confidence: float
+
+
+
+# Chat Schemas
+class ChatRequest(BaseModel):
+    """Request para el endpoint de chat conversacional."""
+    message: str
+    user_context: UserContext
+    financial_summary: Summary
+    categories: List[Category]
+    budgets: Optional[List[Budget]] = []
+
+
+class ChatResponse(BaseModel):
+    """Response del endpoint de chat conversacional."""
+    message: str
+    metadata: Optional[dict] = None
