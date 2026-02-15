@@ -46,6 +46,31 @@ async def llm_health_check():
                 "error": str(e)
             }
 
+    elif provider == "ollama-cloud":
+        api_key = os.getenv("OLLAMA_API_KEY", "")
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    "https://ollama.com/api/tags",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    timeout=10.0
+                )
+                models = response.json().get("models", [])
+                return {
+                    "status": "ok",
+                    "provider": "ollama-cloud",
+                    "url": "https://ollama.com",
+                    "api_key_configured": bool(api_key),
+                    "models_available": len(models),
+                    "model_names": [m["name"] for m in models]
+                }
+        except Exception as e:
+            return {
+                "status": "error",
+                "provider": "ollama-cloud",
+                "error": str(e)
+            }
+
     elif provider == "openai":
         api_key = os.getenv("OPENAI_API_KEY", "")
         return {
