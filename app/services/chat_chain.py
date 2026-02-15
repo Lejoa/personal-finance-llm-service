@@ -2,7 +2,7 @@ from pathlib import Path
 
 from langchain_core.prompts import PromptTemplate
 
-from app.services.financial_chain import get_llm_provider
+from app.services.llm_provider import get_llm_provider
 
 
 def build_chat_chain():
