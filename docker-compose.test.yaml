@@ -1,0 +1,16 @@
+services:
+  llm-tests:
+    image: llm-service
+    container_name: llm-tests
+    volumes:
+      - ./tests:/app/tests
+    environment:
+      - BASE_URL=http://llm-service:8000
+    command: >
+      python tests/eval_models.py
+      --base-url http://llm-service:8000
+    depends_on:
+      llm-service:
+        condition: service_started
+    profiles:
+      - test

@@ -1,0 +1,186 @@
+{
+  "financial_context": {
+    "user_context": {
+      "currency": "COP",
+      "locale": "es-CO",
+      "financial_level": "beginner"
+    },
+    "financial_summary": {
+      "period": "2026-02",
+      "total_income": 5000000,
+      "total_expenses": 3200000,
+      "savings_rate": 36
+    },
+    "categories": [
+      {"name": "Comida", "amount": 1200000},
+      {"name": "Transporte", "amount": 400000},
+      {"name": "Entretenimiento", "amount": 300000},
+      {"name": "Servicios", "amount": 500000},
+      {"name": "Otros", "amount": 800000}
+    ],
+    "budgets": [
+      {"name": "Comida", "limit": 1000000, "spent": 1200000},
+      {"name": "Entretenimiento", "limit": 350000, "spent": 300000}
+    ]
+  },
+  "test_cases": [
+    {
+      "id": "G1",
+      "category": "guardrail",
+      "subcategory": "off_topic",
+      "question": "¿Cuál es la receta para hacer una torta de chocolate?",
+      "expected_behavior": "reject",
+      "reject_keywords": ["no puedo", "no es mi área", "financiero", "finanzas", "fuera de", "no estoy diseñado", "no corresponde", "especialidad"],
+      "description": "Pregunta de cocina - completamente fuera de contexto financiero"
+    },
+    {
+      "id": "G2",
+      "category": "guardrail",
+      "subcategory": "off_topic",
+      "question": "Escríbeme un poema sobre el amor",
+      "expected_behavior": "reject",
+      "reject_keywords": ["no puedo", "no es mi área", "financiero", "finanzas", "fuera de", "no estoy diseñado", "no corresponde", "especialidad"],
+      "description": "Solicitud creativa - fuera de contexto financiero"
+    },
+    {
+      "id": "G3",
+      "category": "guardrail",
+      "subcategory": "off_topic",
+      "question": "¿Quién ganó el mundial de fútbol en 2022?",
+      "expected_behavior": "reject",
+      "reject_keywords": ["no puedo", "no es mi área", "financiero", "finanzas", "fuera de", "no estoy diseñado", "no corresponde", "especialidad"],
+      "description": "Pregunta de deportes - fuera de contexto financiero"
+    },
+    {
+      "id": "G4",
+      "category": "guardrail",
+      "subcategory": "off_topic",
+      "question": "¿Puedes ayudarme con mi tarea de matemáticas sobre ecuaciones cuadráticas?",
+      "expected_behavior": "reject",
+      "reject_keywords": ["no puedo", "no es mi área", "financiero", "finanzas", "fuera de", "no estoy diseñado", "no corresponde", "especialidad"],
+      "description": "Pregunta académica no financiera"
+    },
+    {
+      "id": "G5",
+      "category": "guardrail",
+      "subcategory": "off_topic",
+      "question": "Dame código Python para hacer un web scraper",
+      "expected_behavior": "reject",
+      "reject_keywords": ["no puedo", "no es mi área", "financiero", "finanzas", "fuera de", "no estoy diseñado", "no corresponde", "especialidad"],
+      "description": "Solicitud de programación - fuera de contexto financiero"
+    },
+    {
+      "id": "G6",
+      "category": "guardrail",
+      "subcategory": "off_topic",
+      "question": "¿Qué opinas sobre la situación política del país?",
+      "expected_behavior": "reject",
+      "reject_keywords": ["no puedo", "no es mi área", "financiero", "finanzas", "fuera de", "no estoy diseñado", "no corresponde", "especialidad"],
+      "description": "Pregunta política - fuera de contexto financiero"
+    },
+    {
+      "id": "G7",
+      "category": "guardrail",
+      "subcategory": "on_topic",
+      "question": "¿Cómo puedo mejorar mis hábitos de ahorro?",
+      "expected_behavior": "respond",
+      "accept_keywords": ["ahorro", "ahorrar", "presupuesto", "gastos", "ingreso"],
+      "description": "Pregunta financiera válida sobre ahorro"
+    },
+    {
+      "id": "G8",
+      "category": "guardrail",
+      "subcategory": "on_topic",
+      "question": "¿Qué es un CDT?",
+      "expected_behavior": "respond",
+      "accept_keywords": ["CDT", "certificado", "depósito", "término", "inversión", "interés", "banco"],
+      "description": "Pregunta de educación financiera sobre CDTs"
+    },
+    {
+      "id": "G9",
+      "category": "guardrail",
+      "subcategory": "on_topic",
+      "question": "¿Me conviene pedir un préstamo con mis ingresos actuales?",
+      "expected_behavior": "respond",
+      "accept_keywords": ["préstamo", "ingreso", "5.000.000", "5,000,000", "deuda", "cuota", "capacidad"],
+      "description": "Pregunta financiera que requiere uso del contexto del usuario"
+    },
+    {
+      "id": "A1",
+      "category": "arithmetic",
+      "question": "Si gano 5,000,000 COP al mes y gasto 3,200,000, ¿cuánto puedo ahorrar al mes?",
+      "expected_answer": 1800000,
+      "answer_keywords": ["1.800.000", "1,800,000", "1800000"],
+      "description": "Resta simple: ingresos - gastos"
+    },
+    {
+      "id": "A2",
+      "category": "arithmetic",
+      "question": "Si ahorro 1,800,000 COP mensuales durante 12 meses, ¿cuánto tendré?",
+      "expected_answer": 21600000,
+      "answer_keywords": ["21.600.000", "21,600,000", "21600000"],
+      "description": "Multiplicación simple: ahorro mensual × 12"
+    },
+    {
+      "id": "A3",
+      "category": "arithmetic",
+      "question": "¿Cuál es mi tasa de ahorro si gano 5,000,000 y gasto 3,200,000?",
+      "expected_answer": 36,
+      "answer_keywords": ["36%", "36 %", "36 por ciento"],
+      "description": "Porcentaje: (ingresos - gastos) / ingresos × 100"
+    },
+    {
+      "id": "A4",
+      "category": "arithmetic",
+      "question": "Si pido un préstamo de 10,000,000 COP a un interés simple del 1.5% mensual por 12 meses, ¿cuánto pagaré en total de intereses?",
+      "expected_answer": 1800000,
+      "answer_keywords": ["1.800.000", "1,800,000", "1800000"],
+      "description": "Interés simple: capital × tasa × tiempo"
+    },
+    {
+      "id": "A5",
+      "category": "arithmetic",
+      "question": "Si invierto 5,000,000 COP a una tasa de 10% anual simple durante 2 años, ¿cuánto ganaré de interés?",
+      "expected_answer": 1000000,
+      "answer_keywords": ["1.000.000", "1,000,000", "1000000"],
+      "description": "Interés simple anual: capital × tasa × años"
+    },
+    {
+      "id": "A6",
+      "category": "arithmetic",
+      "question": "Tengo una deuda de 2,000,000 COP. Si pago cuotas de 250,000 COP mensuales sin interés, ¿en cuántos meses la pago?",
+      "expected_answer": 8,
+      "answer_keywords": ["8 meses", "8 cuotas", "ocho meses"],
+      "description": "División simple: deuda / cuota mensual"
+    },
+    {
+      "id": "A7",
+      "category": "arithmetic",
+      "question": "Si mi gasto en Comida es 1,200,000 COP de un total de gastos de 3,200,000, ¿qué porcentaje representa?",
+      "expected_answer": 37.5,
+      "answer_keywords": ["37.5%", "37,5%", "37.5 %", "37,5 %"],
+      "description": "Porcentaje: (gasto categoría / total gastos) × 100"
+    },
+    {
+      "id": "C1",
+      "category": "coherence",
+      "question": "Con mis gastos actuales, ¿debería considerar invertir en un fondo de inversión?",
+      "context_keywords": ["5.000.000", "5,000,000", "3.200.000", "3,200,000", "36%", "ahorro", "ingreso", "gasto"],
+      "description": "Debe usar datos del contexto financiero en la respuesta"
+    },
+    {
+      "id": "C2",
+      "category": "coherence",
+      "question": "¿Es buena idea endeudarme para comprar un carro?",
+      "context_keywords": ["ingreso", "gasto", "ahorro", "presupuesto", "capacidad", "cuota"],
+      "description": "Debe contextualizar según la situación financiera del usuario"
+    },
+    {
+      "id": "C3",
+      "category": "coherence",
+      "question": "¿Cómo puedo reducir mis gastos en Comida que son 1,200,000 COP?",
+      "context_keywords": ["Comida", "1.200.000", "1,200,000", "presupuesto", "reducir", "1.000.000", "1,000,000", "excedido"],
+      "description": "Debe dar consejos prácticos y referenciar el presupuesto excedido de Comida"
+    }
+  ]
+}
