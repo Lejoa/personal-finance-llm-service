@@ -6,16 +6,28 @@ from fastapi import APIRouter
 router = APIRouter(tags=["Health"])
 
 
-@router.get("/health")
+@router.get(
+    "/health",
+    summary="Estado del servicio",
+    description="Verifica que el servicio FastAPI está activo y respondiendo.",
+)
 def health_check():
     return {"status": "ok", "message": "LLM service is running"}
 
 
-@router.get("/health/llm")
+@router.get(
+    "/health/llm",
+    summary="Estado del proveedor LLM",
+    description=(
+        "Verifica la conectividad con el proveedor LLM configurado "
+        "en la variable de entorno `LLM_PROVIDER`.\n\n"
+        "- **ollama / ollama-cloud**: hace una petición a `/api/tags` y lista los modelos disponibles.\n"
+        "- **openai**: verifica que `OPENAI_API_KEY` esté configurada.\n\n"
+        "Siempre retorna HTTP 200. El campo `status` indica el resultado real: "
+        "`ok`, `warning` o `error`."
+    ),
+)
 async def llm_health_check():
-    """
-    Health check que verifica la conexión con el proveedor LLM.
-    """
     provider = os.getenv("LLM_PROVIDER", "openai").lower()
 
     if provider in ("ollama", "ollama-cloud"):

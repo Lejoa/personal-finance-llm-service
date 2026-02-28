@@ -5,6 +5,7 @@ from app.models.schemas import (
     Insight,
     ChatRequest,
     ChatResponse,
+    GuardrailsErrorResponse,
 )
 from app.services.financial_chain import build_financial_chain
 from app.services.chat_chain import build_chat_chain
@@ -15,7 +16,31 @@ router = APIRouter(prefix="/llm", tags=["LLM"])
 
 @router.post(
     "/financial-insights",
-    response_model=FinancialInsightsResponse
+    response_model=FinancialInsightsResponse,
+    responses={
+        422: {
+            "model": GuardrailsErrorResponse,
+            "description": (
+                "El campo `goal` fue rechazado por Guardrails: "
+                "off-topic, contenido tóxico o información personal (PII)."
+            ),
+        },
+        500: {
+            "model": GuardrailsErrorResponse,
+            "description": "La respuesta del LLM no superó la validación de output.",
+        },
+    },
+    summary="Genera insights educativos financieros",
+    description=(
+        "Recibe el resumen financiero del usuario y su objetivo (`goal`), "
+        "y retorna un insight educativo generado por el LLM.\n\n"
+        "El campo `goal` pasa por validación **Guardrails INPUT** "
+        "(RestrictToTopic + ToxicLanguage + DetectPII) antes de llegar al modelo. "
+        "La respuesta pasa por validación **Guardrails OUTPUT** (ToxicLanguage) "
+        "antes de retornarse.\n\n"
+        "> **Nota de latencia:** La generación puede tomar entre 5 y 120 segundos "
+        "según el modelo y hardware. Configura el cliente con `timeout ≥ 120s`."
+    ),
 )
 def get_financial_insights(payload: FinancialInsightsRequest):
     guardrails = get_guardrails_service()
@@ -77,13 +102,36 @@ def get_financial_insights(payload: FinancialInsightsRequest):
     )
 
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post(
+    "/chat",
+    response_model=ChatResponse,
+    responses={
+        422: {
+            "model": GuardrailsErrorResponse,
+            "description": (
+                "El campo `message` fue rechazado por Guardrails: "
+                "off-topic, contenido tóxico o información personal (PII)."
+            ),
+        },
+        500: {
+            "model": GuardrailsErrorResponse,
+            "description": "La respuesta del LLM no superó la validación de output.",
+        },
+    },
+    summary="Chat conversacional con asistente financiero",
+    description=(
+        "Recibe un mensaje libre del usuario junto con su contexto financiero "
+        "(ingresos, gastos, categorías, presupuestos) y retorna una respuesta "
+        "conversacional personalizada generada por el LLM.\n\n"
+        "El campo `message` pasa por validación **Guardrails INPUT** "
+        "(RestrictToTopic + ToxicLanguage + DetectPII) antes de llegar al modelo. "
+        "La respuesta pasa por validación **Guardrails OUTPUT** (ToxicLanguage) "
+        "antes de retornarse.\n\n"
+        "> **Nota de latencia:** La generación puede tomar entre 5 y 120 segundos "
+        "según el modelo y hardware. Configura el cliente con `timeout ≥ 120s`."
+    ),
+)
 def chat(payload: ChatRequest):
-    """
-    Endpoint para chat conversacional con contexto financiero.
-    Recibe el mensaje del usuario junto con su contexto financiero
-    y retorna una respuesta del asistente.
-    """
     guardrails = get_guardrails_service()
 
     # 1. Validar INPUT
