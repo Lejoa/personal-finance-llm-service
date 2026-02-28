@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from app.models.schemas import (
     FinancialInsightsRequest,
     FinancialInsightsResponse,
@@ -8,15 +8,28 @@ from app.models.schemas import (
 )
 from app.services.financial_chain import build_financial_chain
 from app.services.chat_chain import build_chat_chain
+from app.services.guardrails_service import get_guardrails_service, GuardrailsValidationError
 
 router = APIRouter(prefix="/llm", tags=["LLM"])
+
 
 @router.post(
     "/financial-insights",
     response_model=FinancialInsightsResponse
 )
 def get_financial_insights(payload: FinancialInsightsRequest):
+    guardrails = get_guardrails_service()
 
+    # 1. Validar INPUT
+    try:
+        guardrails.validate_input(payload.goal)
+    except GuardrailsValidationError as e:
+        raise HTTPException(status_code=422, detail={
+            "error": e.error_type,
+            "message": e.message,
+        })
+
+    # 2. Invocar el LLM
     chain = build_financial_chain()
 
     categories = ", ".join([c.name for c in payload.categories])
@@ -42,6 +55,15 @@ def get_financial_insights(payload: FinancialInsightsRequest):
         else str(llm_response)
     )
 
+    # 3. Validar OUTPUT
+    try:
+        insight_message = guardrails.validate_output(insight_message)
+    except GuardrailsValidationError as e:
+        raise HTTPException(status_code=500, detail={
+            "error": e.error_type,
+            "message": e.message,
+        })
+
     insights = [
         Insight(
             type="education",
@@ -62,22 +84,31 @@ def chat(payload: ChatRequest):
     Recibe el mensaje del usuario junto con su contexto financiero
     y retorna una respuesta del asistente.
     """
+    guardrails = get_guardrails_service()
+
+    # 1. Validar INPUT
+    try:
+        guardrails.validate_input(payload.message)
+    except GuardrailsValidationError as e:
+        raise HTTPException(status_code=422, detail={
+            "error": e.error_type,
+            "message": e.message,
+        })
+
+    # 2. Invocar el chain con el contexto completo
     chain = build_chat_chain()
 
-    # Preparar categorías como string
     categories_str = ", ".join([
         f"{c.name}: {c.amount} {payload.user_context.currency}"
         for c in payload.categories
     ])
 
-    # Identificar presupuestos excedidos
     over_budget_list = [
         b.name for b in payload.budgets
         if b.spent > b.limit
     ]
     over_budget = ", ".join(over_budget_list) if over_budget_list else "Ninguno"
 
-    # Invocar el chain con el contexto completo
     llm_response = chain.invoke({
         "message": payload.message,
         "financial_level": payload.user_context.financial_level,
@@ -89,12 +120,20 @@ def chat(payload: ChatRequest):
         "over_budget": over_budget,
     })
 
-    # Extraer contenido de la respuesta
     message_content = (
         llm_response.content
         if hasattr(llm_response, "content")
         else str(llm_response)
     )
+
+    # 3. Validar OUTPUT
+    try:
+        message_content = guardrails.validate_output(message_content)
+    except GuardrailsValidationError as e:
+        raise HTTPException(status_code=500, detail={
+            "error": e.error_type,
+            "message": e.message,
+        })
 
     return ChatResponse(
         message=message_content,

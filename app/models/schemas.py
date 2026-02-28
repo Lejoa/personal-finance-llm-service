@@ -52,3 +52,10 @@ class ChatResponse(BaseModel):
     """Response del endpoint de chat conversacional."""
     message: str
     metadata: Optional[dict] = None
+
+
+class GuardrailsErrorResponse(BaseModel):
+    """Response cuando guardrails rechaza el input o output."""
+    error: str
+    error_type: str
+    message: str
