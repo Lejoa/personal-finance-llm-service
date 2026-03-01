@@ -1,15 +1,19 @@
 """
-Script de evaluación de modelos LLM para el servicio financiero.
+Script de evaluación de guards (Guardrails-AI) para el servicio financiero.
+
+Evalúa los tres guards del input_guard:
+  - RestrictToTopic  (G*):  off_topic → HTTP 422 | on_topic → HTTP 200
+  - ToxicLanguage    (T*):  mensajes tóxicos     → HTTP 422
+  - DetectPII        (P*):  mensajes con PII      → HTTP 422
 
 Uso con Docker (recomendado):
-  1. Configurar LLM_MODEL en .env con el modelo a evaluar
-  2. Levantar el servicio: docker compose up -d
-  3. Ejecutar:
+  1. Levantar el servicio: docker compose up -d
+  2. Ejecutar:
      docker compose -f docker-compose.yaml -f docker-compose.test.yaml run --rm llm-tests
-  4. Para especificar modelo:
-     docker compose -f docker-compose.yaml -f docker-compose.test.yaml run --rm llm-tests \
-       python tests/eval_models.py --base-url http://llm-service:8000 --model gpt-oss:120b-cloud
-  5. Los resultados se guardan en tests/results/<modelo>_<timestamp>.json
+  3. Para especificar modelo:
+     docker compose -f docker-compose.yaml -f docker-compose.test.yaml run --rm llm-tests \\
+       python tests/eval_models.py --base-url http://llm-service:8000 --model gpt-4o
+  4. Los resultados se guardan en tests/results/<modelo>_<timestamp>.json
 """
 
 import argparse
@@ -28,6 +32,7 @@ RESULTS_DIR = SCRIPT_DIR / "results"
 DEFAULT_BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 REQUEST_TIMEOUT = 120.0
 
+
 def load_test_cases() -> dict:
     with open(TEST_CASES_PATH, encoding="utf-8") as f:
         return json.load(f)
@@ -36,120 +41,89 @@ def load_test_cases() -> dict:
 def build_payload(financial_context: dict, question: str) -> dict:
     return {
         "message": question,
-        **financial_context
+        **financial_context,
     }
 
 
-def evaluate_guardrail(test: dict, response_text: str) -> dict:
-    response_lower = response_text.lower()
+def evaluate_guardrail(test: dict, status_code: int) -> dict:
+    """
+    Evalúa si el topic guard se comportó correctamente según el status HTTP.
 
-    if test["expected_behavior"] == "reject":
-        kws = test.get("reject_keywords", [])
-        matched = [kw for kw in kws if kw.lower() in response_lower]
-        passed = len(matched) > 0
-        label = "PASS: Rechazo correctamente" if passed else "FAIL: No rechazo pregunta fuera de contexto"
+    - off_topic: el guard debe bloquear con HTTP 422.
+    - on_topic:  el guard debe dejar pasar con HTTP 200.
+    """
+    is_off_topic = test["subcategory"] == "off_topic"
+
+    if is_off_topic:
+        passed = status_code == 422
+        label = (
+            "PASS: Guard bloqueó correctamente (HTTP 422)"
+            if passed
+            else f"FAIL: Se esperaba HTTP 422, se obtuvo HTTP {status_code}"
+        )
     else:
-        kws = test.get("accept_keywords", [])
-        matched = [kw for kw in kws if kw.lower() in response_lower]
-        passed = len(matched) > 0
-        label = "PASS: Respondio con contenido financiero" if passed else "FAIL: No respondio adecuadamente"
-    return {
-        "passed": passed,  
-        "matched_keywords": matched,
-        "evaluation": label
-    }
+        passed = status_code == 200
+        label = (
+            "PASS: Guard dejó pasar correctamente (HTTP 200)"
+            if passed
+            else f"FAIL: Se esperaba HTTP 200, se obtuvo HTTP {status_code}"
+        )
 
-
-def evaluate_arithmetic(test: dict, response_text: str) -> dict:
-    kws = test.get("answer_keywords", [])
-    matched = [ kw for kw in kws if kw in response_text]
-    passed = len(matched) > 0
-    expected = test["expected_answer"]
-    label = f"PASS: Respuesta correcta ({expected})" if passed else f"FAIL: Esperado ({expected})"
     return {
         "passed": passed,
-        "expected_answer": expected,
-        "matched_keywords": matched,
-        "evaluation": label
-    }
-
-
-def evaluate_coherence(test: dict, response_text: str) -> dict:
-    kws = test.get("context_keywords", [])
-    response_lower = response_text.lower()
-    matched = [kw for kw in kws if kw.lower() in response_lower]
-    ratio = len(matched) / len(kws) if kws else 0
-    label = f"Uso {len(matched)}/{len(kws)} refs contexto ({ratio:.0%})"
-    return {
-        "context_usage_ratio": round(ratio, 2),
-        "matched_keywords": matched,
-        "total_keywords": len(kws),
-        "evaluation": label
+        "subcategory": test["subcategory"],
+        "status_code": status_code,
+        "evaluation": label,
     }
 
 
 def run_single_test(
-        client: httpx.Client,
-        base_url: str,
-        financial_context: dict,
-        test: dict
+    client: httpx.Client,
+    base_url: str,
+    financial_context: dict,
+    test: dict,
 ) -> dict:
     payload = build_payload(financial_context, test["question"])
     preview = test["question"][:60]
     print(f"  [{test['id']}] {preview}...", end=" ", flush=True)
     start = time.time()
+
     try:
-        response = client.post(f"{base_url}/llm/chat", json=payload, timeout=REQUEST_TIMEOUT)
+        response = client.post(
+            f"{base_url}/llm/chat", json=payload, timeout=REQUEST_TIMEOUT
+        )
         elapsed_ms = (time.time() - start) * 1000
-        response.raise_for_status()
-        response_text = response.json().get("message", "")
+        status_code = response.status_code
     except httpx.TimeoutException:
         elapsed_ms = (time.time() - start) * 1000
         print(f"TIMEOUT ({elapsed_ms:.0f}ms)")
         return {
-            "id": test["id"], 
-            "category": test["category"], 
+            "id": test["id"],
+            "category": test["category"],
+            "subcategory": test.get("subcategory", ""),
             "question": test["question"],
-            "response": "", 
-            "response_time_ms": round(elapsed_ms, 2), 
+            "description": test.get("description", ""),
+            "status_code": None,
+            "response_time_ms": round(elapsed_ms, 2),
             "error": "TIMEOUT",
-            "evaluation": {"passed": False, "evaluation": "ERROR: Timeout"}
+            "evaluation": {"passed": False, "evaluation": "ERROR: Timeout"},
         }
-    except httpx.HTTPStatusError as e:
-        elapsed_ms = (time.time() - start) * 1000
-        sc = e.response.status_code
-        print(f"HTTP ERROR {sc} ({elapsed_ms:.0f}ms)")
-        return {
-            "id": test["id"], 
-            "category": test["category"], 
-            "question": test["question"],
-            "response": "", 
-            "response_time_ms": round(elapsed_ms, 2), 
-            "error": f"HTTP {sc}",
-            "evaluation": {"passed": False, "evaluation": f"ERROR: HTTP {sc}"}
-        }
-    
-    # Evaluar según categoría
-    evaluators = {
-        "guardrail": evaluate_guardrail,
-        "arithmetic": evaluate_arithmetic,
-        "coherence": evaluate_coherence
-    }
 
-    # Obtengo mi función, las funciones también pueden ser variables
-    fn = evaluators.get(test["category"])
-    evaluation = fn(test, response_text) if fn else {"evaluation": "N/A"}
-    print(f"{evaluation.get('evaluation', '')} ({elapsed_ms:.0f}ms)")
+    evaluation = evaluate_guardrail(test, status_code)
+    print(f"{evaluation['evaluation']} ({elapsed_ms:.0f}ms)")
 
     return {
         "id": test["id"],
         "category": test["category"],
+        "subcategory": test.get("subcategory", ""),
+        "guardrail_type": test.get("guardrail_type", "none"),
         "question": test["question"],
         "description": test.get("description", ""),
-        "response": response_text,
+        "status_code": status_code,
         "response_time_ms": round(elapsed_ms, 2),
-        "evaluation": evaluation
+        "evaluation": evaluation,
     }
+
 
 def calculate_scores(results: list) -> dict:
     times = [r["response_time_ms"] for r in results if "error" not in r]
@@ -166,60 +140,47 @@ def calculate_scores(results: list) -> dict:
             "p95_ms": round(p95_val, 2),
         }
 
-    # Score guardrail
-    guardrail_results = [r for r in results if r["category"] == "guardrail" and "error" not in r]
-    guardrail_passed = sum(1 for r in guardrail_results if r["evaluation"].get("passed", False))
-    guardrail_total = len(guardrail_results)
+    valid = [r for r in results if "error" not in r]
+    passed = sum(1 for r in valid if r["evaluation"].get("passed", False))
+    total = len(valid)
 
-    # Score aritmética
-    arithmetic_results = [r for r in results if r["category"] == "arithmetic" and "error" not in r]
-    arithmetic_passed = sum(1 for r in arithmetic_results if r["evaluation"].get("passed", False))
-    arithmetic_total = len(arithmetic_results)
+    off_topic = [r for r in valid if r.get("subcategory") == "off_topic"]
+    on_topic = [r for r in valid if r.get("subcategory") == "on_topic"]
+    off_passed = sum(1 for r in off_topic if r["evaluation"].get("passed", False))
+    on_passed = sum(1 for r in on_topic if r["evaluation"].get("passed", False))
 
-    # Score coherencia
-    coherence_results = [r for r in results if r["category"] == "coherence" and "error" not in r]
-    coherence_avg_ratio = 0
-    if coherence_results:
-        ratios = [r["evaluation"].get("context_usage_ratio", 0) for r in coherence_results]
-        coherence_avg_ratio = round(sum(ratios) / len(ratios), 2)
+    def _guard_score(gtype: str) -> dict:
+        subset = [r for r in valid if r.get("guardrail_type") == gtype]
+        p = sum(1 for r in subset if r["evaluation"].get("passed", False))
+        return {
+            "passed": p,
+            "total": len(subset),
+            "score_pct": round(p / len(subset) * 100, 1) if subset else 0,
+        }
 
-    scores = {
+    return {
         "timing": timing,
         "guardrail": {
-            "passed": guardrail_passed,
-            "total": guardrail_total,
-            "score_pct": round(guardrail_passed / guardrail_total * 100, 1) if guardrail_total else 0,
-        },
-        "arithmetic": {
-            "passed": arithmetic_passed,
-            "total": arithmetic_total,
-            "score_pct": round(arithmetic_passed / arithmetic_total * 100, 1) if arithmetic_total else 0,
-        },
-        "coherence": {
-            "avg_context_usage": coherence_avg_ratio,
-            "total": len(coherence_results),
+            "passed": passed,
+            "total": total,
+            "score_pct": round(passed / total * 100, 1) if total else 0,
+            "off_topic": {
+                "passed": off_passed,
+                "total": len(off_topic),
+                "score_pct": round(off_passed / len(off_topic) * 100, 1) if off_topic else 0,
+            },
+            "on_topic": {
+                "passed": on_passed,
+                "total": len(on_topic),
+                "score_pct": round(on_passed / len(on_topic) * 100, 1) if on_topic else 0,
+            },
+            "by_guard": {
+                "topic": _guard_score("topic"),
+                "toxic": _guard_score("toxic"),
+                "pii":   _guard_score("pii"),
+            },
         },
     }
-
-    # Score total ponderado: Adherencia 30% + Correctitud 50% + Tiempo 20%
-    adherence_score = scores["guardrail"]["score_pct"]
-    correctness_score = scores["arithmetic"]["score_pct"]
-
-    # Tiempo: 100% si avg < 10s, 0% si avg > 60s, lineal entre ambos
-    avg_time_s = timing.get("avg_ms", 60000) / 1000
-    if avg_time_s <= 10:
-        time_score = 100
-    elif avg_time_s >= 60:
-        time_score = 0
-    else:
-        time_score = round((1 - (avg_time_s - 10) / 50) * 100, 1)
-
-    scores["time_score_pct"] = time_score
-    scores["total_weighted"] = round(
-        adherence_score * 0.30 + correctness_score * 0.50 + time_score * 0.20, 1
-    )
-
-    return scores
 
 
 def print_summary(model_name: str, scores: dict):
@@ -229,26 +190,23 @@ def print_summary(model_name: str, scores: dict):
 
     timing = scores.get("timing", {})
     print("\n  Tiempos de respuesta:")
-    print(f"    Promedio:   {timing.get('avg_ms', 0) / 1000:.1f}s")
-    print(f"    Mínimo:     {timing.get('min_ms', 0) / 1000:.1f}s")
-    print(f"    Máximo:     {timing.get('max_ms', 0) / 1000:.1f}s")
-    print(f"    P95:        {timing.get('p95_ms', 0) / 1000:.1f}s")
+    print(f"    Promedio: {timing.get('avg_ms', 0) / 1000:.1f}s")
+    print(f"    Mínimo:   {timing.get('min_ms', 0) / 1000:.1f}s")
+    print(f"    Máximo:   {timing.get('max_ms', 0) / 1000:.1f}s")
+    print(f"    P95:      {timing.get('p95_ms', 0) / 1000:.1f}s")
 
     g = scores["guardrail"]
-    print(f"\n  Adherencia al contexto (guardrail):")
-    print(f"    {g['passed']}/{g['total']} correctos — {g['score_pct']}%")
-
-    a = scores["arithmetic"]
-    print(f"\n  Correctitud aritmética:")
-    print(f"    {a['passed']}/{a['total']} correctos — {a['score_pct']}%")
-
-    c = scores["coherence"]
-    print(f"\n  Coherencia (uso del contexto):")
-    print(f"    Uso promedio del contexto: {c['avg_context_usage']:.0%}")
-
-    print(f"\n  Score de tiempo: {scores['time_score_pct']}%")
-    print(f"\n  SCORE TOTAL PONDERADO: {scores['total_weighted']}%")
-    print("    (Adherencia 30% + Correctitud 50% + Tiempo 20%)")
+    off = g["off_topic"]
+    on = g["on_topic"]
+    bg = g["by_guard"]
+    print(f"\n  Total guards:   {g['passed']}/{g['total']} — {g['score_pct']}%")
+    print(f"\n  Desglose por subcategoría:")
+    print(f"    Off-topic:    {off['passed']}/{off['total']} bloqueados — {off['score_pct']}%")
+    print(f"    On-topic:     {on['passed']}/{on['total']} aceptados  — {on['score_pct']}%")
+    print(f"\n  Desglose por guard:")
+    print(f"    RestrictToTopic:  {bg['topic']['passed']}/{bg['topic']['total']} — {bg['topic']['score_pct']}%")
+    print(f"    ToxicLanguage:    {bg['toxic']['passed']}/{bg['toxic']['total']} — {bg['toxic']['score_pct']}%")
+    print(f"    DetectPII:        {bg['pii']['passed']}/{bg['pii']['total']} — {bg['pii']['score_pct']}%")
     print("=" * 65)
 
 
@@ -274,17 +232,24 @@ def save_results(model_name: str, results: list, scores: dict):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Evaluación de modelos LLM para servicios financieros")
-    parser.add_argument("--model", default=None, help="Nombre del modelo (para etiquetar resultados)")
-    parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help=f"URL base del servicio (default: {DEFAULT_BASE_URL})")
+    parser = argparse.ArgumentParser(
+        description="Evaluación del topic guard para el servicio financiero LLM"
+    )
+    parser.add_argument(
+        "--model", default=None, help="Nombre del modelo (para etiquetar resultados)"
+    )
+    parser.add_argument(
+        "--base-url",
+        default=DEFAULT_BASE_URL,
+        help=f"URL base del servicio (default: {DEFAULT_BASE_URL})",
+    )
     args = parser.parse_args()
 
-    #Cargar test cases
     data = load_test_cases()
     financial_context = data["financial_context"]
-    test_cases = data["test_cases"]
+    # Solo ejecutar tests de la categoría guardrail
+    test_cases = [t for t in data["test_cases"] if t["category"] == "guardrail"]
 
-    #Verificar que el servicio está activo
     print(f"\n Verificando servicio en {args.base_url}...")
     try:
         with httpx.Client() as client:
@@ -293,54 +258,41 @@ def main():
             print(f" Servicio activo: {health.json()}")
     except Exception as e:
         print(f" ERROR: No se puede conectar al servicio: {e}")
-        print(f" Asegúrate de que el servicio este corriendo en: {args.base_url}")
+        print(f" Asegúrate de que el servicio esté corriendo en: {args.base_url}")
         sys.exit(1)
 
-    # Detectar modelo si no se especificó
     model_name = args.model
     if not model_name:
         try:
             with httpx.Client() as client:
                 llm_health = client.get(f"{args.base_url}/health/llm", timeout=10.0)
-                llm_data = llm_health.json()
-                model_name = llm_data.get("provider", "unknown")
+                model_name = llm_health.json().get("provider", "unknown")
         except Exception:
             model_name = "unknown"
 
+    off_count = sum(1 for t in test_cases if t.get("subcategory") == "off_topic")
+    on_count = sum(1 for t in test_cases if t.get("subcategory") == "on_topic")
+    topic_count = sum(1 for t in test_cases if t.get("guardrail_type") == "topic")
+    toxic_count = sum(1 for t in test_cases if t.get("guardrail_type") == "toxic")
+    pii_count = sum(1 for t in test_cases if t.get("guardrail_type") == "pii")
 
     print(f"\n  Modelo: {model_name}")
-    print(f"  Total test cases: {len(test_cases)}")
-    print(f"  Categorías: guardrail ({sum(1 for t in test_cases if t['category'] == 'guardrail')}), "
-          f"arithmetic ({sum(1 for t in test_cases if t['category'] == 'arithmetic')}), "
-          f"coherence ({sum(1 for t in test_cases if t['category'] == 'coherence')})")
+    print(f"  Tests totales: {len(test_cases)} ({off_count} off_topic, {on_count} on_topic)")
+    print(f"  Por guard: RestrictToTopic={topic_count}, ToxicLanguage={toxic_count}, DetectPII={pii_count}")
     print()
 
-    # Ejecutar evaluación
     results = []
-    categories = ["guardrail", "arithmetic", "coherence"]
-
-
     with httpx.Client() as client:
-        for category in categories:
-            category_tests = [t for t in test_cases if t["category"] == category]
-            print(f"--- {category.upper()} ({len(category_tests)} tests) ---")
-            for test in category_tests:
-                result = run_single_test(client,
-                                         args.base_url,
-                                         financial_context,
-                                         test)
-                results.append(result)
-            print()
+        print(f"--- GUARDRAIL ({len(test_cases)} tests) ---")
+        for test in test_cases:
+            result = run_single_test(client, args.base_url, financial_context, test)
+            results.append(result)
+        print()
 
-    # Calcular scores y mostrar resumen
     scores = calculate_scores(results)
     print_summary(model_name, scores)
-
-    #Guardar resultados
     save_results(model_name, results, scores)
 
 
 if __name__ == "__main__":
     main()
-
-
