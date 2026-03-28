@@ -129,6 +129,31 @@ class ChatRequest(BaseModel):
     )
 
 
+class TransactionAction(BaseModel):
+    """Datos de una transacción detectada en el mensaje del usuario"""
+
+    name: str = Field(
+        description="Descripción breve del concepto de la transacción.",
+        examples=["Hamburguesa, Salida a Cine"],
+    )
+    type: str = Field(
+        description="Tipo de transacción: gasto o ingreso.",
+        examples=["gasto", "ingreso"]
+    )
+    amount: float = Field(
+        description="Monto de la transacción como número positivo.",
+        examples=[50000.0],
+    )
+    date: str = Field(
+        description="Fecha de la transacción en formato YYYY-MM-DD.",
+        examples=["2026-03-19"],
+    )
+    category_name: Optional[str] = Field(
+        default=None,
+        description="Nombre de la categoría del presupuesto que mejor aplica. 'Otros' si ninguna aplica.",
+        examples=["Comida", "Entretenimiento", "Otros"], 
+    )
+
 class ChatResponse(BaseModel):
     """Respuesta del asistente financiero conversacional."""
 
@@ -140,6 +165,10 @@ class ChatResponse(BaseModel):
         default=None,
         description="Metadatos adicionales de la respuesta.",
         examples=[{"confidence": 0.85, "type": "conversational"}],
+    )
+    transaction_action: Optional[TransactionAction] = Field( 
+        default=None,
+        description="Datos de transacción detectada en el mensaje del usuario. Null si es una pregunta.",
     )
 
 

@@ -1,14 +1,18 @@
+from datetime import date as date_type
+
 from fastapi import APIRouter, HTTPException
+from langchain_core.exceptions import OutputParserException
 from app.models.schemas import (
     FinancialInsightsRequest,
     FinancialInsightsResponse,
     Insight,
     ChatRequest,
     ChatResponse,
+    TransactionAction,
     GuardrailsErrorResponse,
 )
 from app.services.financial_chain import build_financial_chain
-from app.services.chat_chain import build_chat_chain
+from app.services.chat_chain import build_chat_chain_structured
 from app.services.guardrails_service import get_guardrails_service, GuardrailsValidationError
 
 router = APIRouter(prefix="/llm", tags=["LLM"])
@@ -123,8 +127,10 @@ def get_financial_insights(payload: FinancialInsightsRequest):
         "Recibe un mensaje libre del usuario junto con su contexto financiero "
         "(ingresos, gastos, categorías, presupuestos) y retorna una respuesta "
         "conversacional personalizada generada por el LLM.\n\n"
-        "El campo `message` pasa por validación **Guardrails INPUT** "
-        "(RestrictToTopic + ToxicLanguage + DetectPII) antes de llegar al modelo. "
+        "El campo `message` pasa por validación **Guardrails Safety** "
+        "(ToxicLanguage + DetectPII) antes de llegar al modelo. "
+        "La clasificación de intención (transaction / question / off_topic) "
+        "es responsabilidad del LLM. "
         "La respuesta pasa por validación **Guardrails OUTPUT** (ToxicLanguage) "
         "antes de retornarse.\n\n"
         "> **Nota de latencia:** La generación puede tomar entre 5 y 120 segundos "
@@ -134,17 +140,17 @@ def get_financial_insights(payload: FinancialInsightsRequest):
 def chat(payload: ChatRequest):
     guardrails = get_guardrails_service()
 
-    # 1. Validar INPUT
+    # 1. Safety guard — ToxicLanguage + DetectPII (sin RestrictToTopic)
     try:
-        guardrails.validate_input(payload.message)
+        guardrails.validate_safety(payload.message)
     except GuardrailsValidationError as e:
         raise HTTPException(status_code=422, detail={
             "error": e.error_type,
             "message": e.message,
         })
 
-    # 2. Invocar el chain con el contexto completo
-    chain = build_chat_chain()
+    # 2. Invocar el chain — JsonOutputParser retorna dict directamente
+    chain = build_chat_chain_structured()
 
     categories_str = ", ".join([
         f"{c.name}: {c.amount} {payload.user_context.currency}"
@@ -157,24 +163,55 @@ def chat(payload: ChatRequest):
     ]
     over_budget = ", ".join(over_budget_list) if over_budget_list else "Ninguno"
 
-    llm_response = chain.invoke({
-        "message": payload.message,
-        "financial_level": payload.user_context.financial_level,
-        "total_income": payload.financial_summary.total_income,
-        "total_expenses": payload.financial_summary.total_expenses,
-        "savings_rate": payload.financial_summary.savings_rate,
-        "currency": payload.user_context.currency,
-        "categories": categories_str,
-        "over_budget": over_budget,
-    })
+    try:
+        parsed = chain.invoke({
+            "message": payload.message,
+            "financial_level": payload.user_context.financial_level,
+            "total_income": payload.financial_summary.total_income,
+            "total_expenses": payload.financial_summary.total_expenses,
+            "savings_rate": payload.financial_summary.savings_rate,
+            "currency": payload.user_context.currency,
+            "categories": categories_str,
+            "over_budget": over_budget,
+            "current_date": date_type.today().isoformat(),
+        })
+    except OutputParserException:
+        parsed = {
+            "intent": "question",
+            "message": payload.message,
+            "transaction_data": None,
+        }
 
-    message_content = (
-        llm_response.content
-        if hasattr(llm_response, "content")
-        else str(llm_response)
-    )
+    intent = parsed.get("intent", "question")
+    message_content = parsed.get("message", "")
 
-    # 3. Validar OUTPUT
+    # 3. Routing por intención
+    if intent == "off_topic":
+        return ChatResponse(
+            message=message_content or (
+                "Solo puedo ayudarte con temas de finanzas personales como "
+                "presupuesto, ahorro, gastos e ingresos. ¿Tienes alguna consulta financiera?"
+            ),
+            metadata={"confidence": 1.0, "type": "off_topic"},
+            transaction_action=None,
+        )
+
+    transaction_action = None
+
+    if intent == "transaction" and parsed.get("transaction_data"):
+        td = parsed["transaction_data"]
+        try:
+            transaction_action = TransactionAction(
+                name=str(td["name"]),
+                type=str(td["type"]),
+                amount=float(td["amount"]),
+                date=str(td["date"]),
+                category_name=str(td.get("category_name") or "Otros"),
+            )
+        except (KeyError, ValueError, TypeError):
+            transaction_action = None
+
+    # 4. Validar OUTPUT
     try:
         message_content = guardrails.validate_output(message_content)
     except GuardrailsValidationError as e:
@@ -187,6 +224,7 @@ def chat(payload: ChatRequest):
         message=message_content,
         metadata={
             "confidence": 0.85,
-            "type": "conversational"
-        }
+            "type": "transaction" if transaction_action else "conversational",
+        },
+        transaction_action=transaction_action,
     )

@@ -2,10 +2,13 @@
 GuardrailsService — Capa de validación de input/output para el LLM financiero.
 
 Valida que:
-- El input del usuario sea una pregunta financiera (RestrictToTopic)
+- El input del usuario sea una pregunta financiera (RestrictToTopic) — usado por /llm/financial-insights
 - El input no contenga lenguaje tóxico (ToxicLanguage)
 - El input no exponga datos personales sensibles (DetectPII)
 - El output del LLM no contenga lenguaje tóxico (ToxicLanguage)
+
+Para /llm/chat se usa validate_safety() que omite RestrictToTopic:
+la detección de mensajes off_topic es responsabilidad del LLM (intent="off_topic").
 """
 from guardrails import Guard
 from guardrails.hub import RestrictToTopic, ToxicLanguage, DetectPII
@@ -24,15 +27,32 @@ FINANCIAL_TOPICS = [
     "cryptocurrency",
     "stock market",
     "money management",
+    # Registro de gastos e ingresos en lenguaje natural
+    "spending money",
+    "buying something",
+    "purchasing goods",
+    "paying for something",
+    "expense tracking",
+    "recording a transaction",
+    "logging an expense",
+    "logging income",
+    "received payment",
+    "earned money",
+    "spent money",
+    "paid for",
+    "transaction record",
+    "financial transaction",
+    "purchase amount",
+    "money spent",
+    "money received",
 ]
 
 INVALID_TOPICS = [
     "cooking recipes",
-    "sports",
+    "sports scores",
     "politics",
-    "programming",
-    "entertainment",
-    "travel",
+    "software programming",
+    "entertainment news",
 ]
 
 PII_ENTITIES = [
@@ -72,6 +92,19 @@ class GuardrailsService:
             ),
         )
 
+        # Guard para el chat — sin RestrictToTopic (el LLM clasifica la intención)
+        self.safety_guard = Guard().use_many(
+            ToxicLanguage(
+                threshold=0.5,
+                validation_method="sentence",
+                on_fail="exception",
+            ),
+            DetectPII(
+                pii_entities=PII_ENTITIES,
+                on_fail="exception",
+            ),
+        )
+
         # Guard para OUTPUT del LLM
         self.output_guard = Guard().use(
             ToxicLanguage(
@@ -96,6 +129,34 @@ class GuardrailsService:
                     "¿Tienes alguna consulta sobre tu presupuesto, ahorro o inversiones?",
                     error_type="off_topic",
                 )
+            if "toxic" in error_msg:
+                raise GuardrailsValidationError(
+                    "Tu mensaje contiene contenido inapropiado. "
+                    "Por favor, reformula tu pregunta de forma respetuosa.",
+                    error_type="toxic",
+                )
+            if "pii" in error_msg:
+                raise GuardrailsValidationError(
+                    "Tu mensaje parece contener información personal sensible "
+                    "(como número de cédula o cuenta). "
+                    "Por favor, no incluyas datos personales en tus consultas.",
+                    error_type="pii",
+                )
+            raise GuardrailsValidationError(
+                "No se pudo procesar tu mensaje. Por favor intenta de nuevo.",
+                error_type="unknown",
+            )
+
+    def validate_safety(self, user_message: str) -> None:
+        """
+        Valida ToxicLanguage y DetectPII únicamente.
+        Usado por /llm/chat — la intención off_topic la detecta el LLM, no ALBERT.
+        Lanza GuardrailsValidationError si falla alguna validación.
+        """
+        try:
+            self.safety_guard.validate(user_message)
+        except Exception as e:
+            error_msg = str(e).lower()
             if "toxic" in error_msg:
                 raise GuardrailsValidationError(
                     "Tu mensaje contiene contenido inapropiado. "
