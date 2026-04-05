@@ -61,21 +61,37 @@ def get_financial_insights(payload: FinancialInsightsRequest):
     # 2. Invocar el LLM
     chain = build_financial_chain()
 
-    categories = ", ".join([c.name for c in payload.categories])
+    categories = ", ".join([
+        f"{c.name}: {c.amount} {payload.user_context.currency}"
+        for c in payload.categories
+    ])
 
-    over_budget = (
-        payload.budgets[0].name
-        if payload.budgets and payload.budgets[0].spent > payload.budgets[0].limit
-        else "Ninguno"
+    over_budget_list = [
+        f"{b.name} (límite {b.limit}, gastado {b.spent} {payload.user_context.currency})"
+        for b in payload.budgets
+        if b.spent > b.limit
+    ]
+    over_budget = ", ".join(over_budget_list) if over_budget_list else "Ninguno"
+
+    previous_savings_rate = payload.summary.previous_savings_rate
+    savings_rate_comparison = (
+        f"{previous_savings_rate:.1f}%"
+        if previous_savings_rate is not None
+        else "sin datos del mes anterior"
     )
 
     llm_response = chain.invoke({
         "financial_level": payload.user_context.financial_level,
+        "period": payload.summary.period,
         "total_income": payload.summary.total_income,
         "total_expenses": payload.summary.total_expenses,
+        "savings_rate": payload.summary.savings_rate,
+        "previous_savings_rate": savings_rate_comparison,
         "currency": payload.user_context.currency,
         "categories": categories,
         "over_budget": over_budget,
+        "top_tip": payload.top_tip or "No disponible",
+        "goal": payload.goal,
     })
 
     insight_message = (

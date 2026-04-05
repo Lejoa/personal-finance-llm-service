@@ -38,6 +38,11 @@ class Summary(BaseModel):
         description="Tasa de ahorro expresada como porcentaje (0–100).",
         examples=[36.0],
     )
+    previous_savings_rate: Optional[float] = Field(
+        default=None,
+        description="Tasa de ahorro del mes anterior como porcentaje (0–100). Null si no hay datos.",
+        examples=[28.0],
+    )
 
 
 class Category(BaseModel):
@@ -75,6 +80,11 @@ class FinancialInsightsRequest(BaseModel):
     budgets: Optional[List[Budget]] = Field(
         default=[],
         description="Lista de presupuestos por categoría. Opcional.",
+    )
+    top_tip: Optional[str] = Field(
+        default=None,
+        description="Consejo más relevante para el perfil del usuario. Formato: 'Título: descripción corta'.",
+        examples=["Fondo de emergencia: Guarda 3 meses de gastos para imprevistos"],
     )
     goal: str = Field(
         description=(
