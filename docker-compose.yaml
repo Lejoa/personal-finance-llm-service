@@ -27,6 +27,7 @@ services:
       args:
         GUARDRAILS_API_KEY: ${GUARDRAILS_API_KEY}
     image: llm-service
+    container_name: llm-service
     ports:
       - "8000:8000"
     volumes:

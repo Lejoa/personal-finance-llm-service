@@ -1,0 +1,238 @@
+{
+  "financial_context": {
+    "user_context": {
+      "currency": "COP",
+      "locale": "es-CO",
+      "financial_level": "beginner"
+    },
+    "financial_summary": {
+      "period": "2026-02",
+      "total_income": 5000000,
+      "total_expenses": 3200000,
+      "savings_rate": 36
+    },
+    "categories": [
+      {"name": "Comida", "amount": 1200000},
+      {"name": "Transporte", "amount": 400000},
+      {"name": "Entretenimiento", "amount": 300000},
+      {"name": "Servicios", "amount": 500000},
+      {"name": "Otros", "amount": 800000}
+    ],
+    "budgets": [
+      {"name": "Comida", "limit": 1000000, "spent": 1200000},
+      {"name": "Entretenimiento", "limit": 350000, "spent": 300000}
+    ]
+  },
+  "test_cases": [
+    {
+      "id": "MT-T1",
+      "use_case": "transaction",
+      "description": "Registro de gasto de almuerzo, consulta de impacto en presupuesto y registro de ingreso freelance",
+      "scenario": "Usuario principiante registra un gasto de restaurante, pregunta si afecta su presupuesto y luego registra un ingreso extra de freelance en la misma conversación.",
+      "expected_outcome": "El asistente debe confirmar el gasto de comida con monto y categoría, explicar el impacto en el presupuesto de Comida (ya excedido en 200.000 COP), y confirmar el registro del ingreso freelance.",
+      "chatbot_role": "Asistente financiero personal que ayuda a registrar transacciones y dar consejos financieros básicos en pesos colombianos.",
+      "metrics": ["turn_relevancy", "conversation_completeness", "role_adherence"],
+      "user_turns": [
+        "Gasté 45000 pesos en un almuerzo hoy en el restaurante del trabajo",
+        "¿Eso afecta mucho mi presupuesto de comida?",
+        "Además recibí un pago de freelance de 300000 pesos hoy"
+      ]
+    },
+    {
+      "id": "MT-T2",
+      "use_case": "transaction",
+      "description": "Registro de múltiples gastos de transporte con consulta de impacto acumulado",
+      "scenario": "Usuario registra dos gastos de transporte durante el día y luego pregunta por el total acumulado en esa categoría.",
+      "expected_outcome": "El asistente debe registrar cada gasto de transporte por separado y al ser consultado contextualizar el gasto acumulado de transporte respecto a los 400.000 COP del mes.",
+      "chatbot_role": "Asistente financiero personal que ayuda a registrar transacciones y dar consejos financieros básicos en pesos colombianos.",
+      "metrics": ["turn_relevancy", "conversation_completeness", "role_adherence"],
+      "user_turns": [
+        "Pagué 15000 de uber esta mañana para ir a la oficina",
+        "También pagué 8500 de bus de regreso a casa en la tarde",
+        "¿Cuánto llevo gastado en transporte si sumo estos dos?"
+      ]
+    },
+    {
+      "id": "MT-T3",
+      "use_case": "transaction",
+      "description": "Consulta de presupuesto disponible en entretenimiento antes de registrar un gasto",
+      "scenario": "Usuario verifica cuánto tiene disponible en entretenimiento, registra un gasto de cine y luego consulta si le conviene gastar más.",
+      "expected_outcome": "El asistente debe informar el estado del presupuesto de entretenimiento (300.000 gastado de 350.000 límite), registrar el gasto de cine y aconsejar sobre el margen restante.",
+      "chatbot_role": "Asistente financiero personal que ayuda a registrar transacciones y dar consejos financieros básicos en pesos colombianos.",
+      "metrics": ["turn_relevancy", "conversation_completeness", "role_adherence"],
+      "user_turns": [
+        "¿Cuánto tengo disponible en mi presupuesto de entretenimiento?",
+        "Perfecto, entonces registro que gasté 35000 en cine esta noche",
+        "¿Me conviene ir a otro evento esta semana o ya estoy muy justo?"
+      ]
+    },
+    {
+      "id": "MT-T4",
+      "use_case": "transaction",
+      "description": "Registro de gasto en mercado con corrección de monto y verificación de presupuesto",
+      "scenario": "Usuario registra un gasto con monto incorrecto, lo corrige en el siguiente turno y consulta el impacto final en el presupuesto de Comida.",
+      "expected_outcome": "El asistente debe manejar la corrección con claridad, registrar el monto correcto de 120.000 COP y explicar el impacto adicional en Comida que ya está excedida en 200.000 COP.",
+      "chatbot_role": "Asistente financiero personal que ayuda a registrar transacciones y dar consejos financieros básicos en pesos colombianos.",
+      "metrics": ["turn_relevancy", "conversation_completeness", "role_adherence"],
+      "user_turns": [
+        "Registra que gasté 80000 en mercado en Éxito",
+        "Espera, me equivoqué, fue 120000 no 80000 pesos",
+        "¿Con esto ya excedí del todo el presupuesto de comida?"
+      ]
+    },
+    {
+      "id": "MT-T5",
+      "use_case": "transaction",
+      "description": "Registro de salario mensual con planificación de distribución inmediata",
+      "scenario": "Usuario recibe su salario y en la misma conversación pregunta cómo distribuirlo y cuánto separar para categorías prioritarias.",
+      "expected_outcome": "El asistente debe registrar el ingreso de 5.000.000 COP y dar orientación de distribución considerando el presupuesto excedido de Comida y la tasa de ahorro actual del 36%.",
+      "chatbot_role": "Asistente financiero personal que ayuda a registrar transacciones y dar consejos financieros básicos en pesos colombianos.",
+      "metrics": ["turn_relevancy", "conversation_completeness", "role_adherence"],
+      "user_turns": [
+        "Me acaban de depositar mi salario mensual de 5000000 pesos",
+        "¿Cómo me recomiendas distribuir este dinero para el mes?",
+        "¿Cuánto debería separar específicamente para comida y para ahorro?"
+      ]
+    },
+    {
+      "id": "MT-Q1",
+      "use_case": "financial_question",
+      "description": "Exploración progresiva del exceso en presupuesto de comida con estrategias de mejora",
+      "scenario": "Usuario principiante detecta que está excedido en comida y hace preguntas de profundización para entender el monto exacto y cómo mejorar.",
+      "expected_outcome": "El asistente debe explicar el exceso de 200.000 COP en Comida, dar el monto exacto con datos consistentes y ofrecer recomendaciones concretas para reducir ese gasto.",
+      "chatbot_role": "Asistente financiero personal que ayuda a registrar transacciones y dar consejos financieros básicos en pesos colombianos.",
+      "metrics": ["turn_relevancy", "conversation_completeness", "knowledge_retention", "role_adherence"],
+      "user_turns": [
+        "¿Qué presupuestos tengo excedidos este mes?",
+        "¿Cuánto exactamente estoy gastando de más en comida?",
+        "¿Qué estrategias concretas me recomiendas para bajar ese gasto el próximo mes?"
+      ]
+    },
+    {
+      "id": "MT-Q2",
+      "use_case": "financial_question",
+      "description": "Análisis de tasa de ahorro con evaluación para nivel principiante y proyección de mejora",
+      "scenario": "Usuario pregunta su tasa de ahorro actual, quiere saber si es adecuada para su nivel y proyecta cómo mejoraría reduciendo gastos en comida.",
+      "expected_outcome": "El asistente debe citar el 36% de ahorro de forma consistente en los tres turnos, evaluar que supera el mínimo del 20% para principiantes y calcular el nuevo porcentaje al reducir 200.000 COP de Comida.",
+      "chatbot_role": "Asistente financiero personal que ayuda a registrar transacciones y dar consejos financieros básicos en pesos colombianos.",
+      "metrics": ["turn_relevancy", "conversation_completeness", "knowledge_retention", "role_adherence"],
+      "user_turns": [
+        "¿Cuál es mi tasa de ahorro actual?",
+        "¿Eso es bueno o malo para alguien con mi nivel financiero?",
+        "Si reduzco 200000 pesos de comida, ¿cómo mejora mi porcentaje de ahorro?"
+      ]
+    },
+    {
+      "id": "MT-Q3",
+      "use_case": "financial_question",
+      "description": "Desglose de categorías de gasto con análisis de la mayor y su estado presupuestario",
+      "scenario": "Usuario quiere entender en qué gasta su dinero, identificar la categoría principal y verificar cómo está el presupuesto de esa categoría.",
+      "expected_outcome": "El asistente debe dar el desglose completo de las 5 categorías, identificar Comida como la mayor y confirmar que su presupuesto está excedido en 200.000 COP usando datos consistentes.",
+      "chatbot_role": "Asistente financiero personal que ayuda a registrar transacciones y dar consejos financieros básicos en pesos colombianos.",
+      "metrics": ["turn_relevancy", "conversation_completeness", "knowledge_retention", "role_adherence"],
+      "user_turns": [
+        "¿En qué categorías estoy gastando mi dinero este mes?",
+        "¿Cuál es la categoría donde más estoy gastando?",
+        "¿Esa categoría tiene presupuesto asignado y cómo está?"
+      ]
+    },
+    {
+      "id": "MT-Q4",
+      "use_case": "financial_question",
+      "description": "Planificación de meta de ahorro para viaje con cálculo de tiempo y ajustes necesarios",
+      "scenario": "Usuario quiere ahorrar para un viaje de 2.000.000 COP y explora cuánto tiempo necesita y qué ajustes haría para lograrlo más rápido.",
+      "expected_outcome": "El asistente debe calcular en base al ahorro actual de 1.800.000 COP mensuales el tiempo estimado y dar un plan realista con ajustes concretos manteniendo coherencia numérica en los turnos.",
+      "chatbot_role": "Asistente financiero personal que ayuda a registrar transacciones y dar consejos financieros básicos en pesos colombianos.",
+      "metrics": ["turn_relevancy", "conversation_completeness", "knowledge_retention", "role_adherence"],
+      "user_turns": [
+        "Quiero ahorrar para un viaje que cuesta aproximadamente 2000000 pesos",
+        "¿En cuántos meses podría juntar ese dinero con mi ahorro actual?",
+        "¿Qué ajuste tendría que hacer en mis gastos para lograrlo en menos tiempo?"
+      ]
+    },
+    {
+      "id": "MT-Q5",
+      "use_case": "financial_question",
+      "description": "Explicación de la regla 50/30/20 y aplicación al perfil financiero del usuario",
+      "scenario": "Usuario principiante pregunta qué es la regla 50/30/20, cómo aplicarla a sus ingresos y cómo se compara con su situación actual.",
+      "expected_outcome": "El asistente debe explicar la regla, calcular los valores con los 5.000.000 COP de ingreso (2.500.000 necesidades, 1.500.000 deseos, 1.000.000 ahorro) y comparar con los 3.200.000 COP en gastos actuales.",
+      "chatbot_role": "Asistente financiero personal que ayuda a registrar transacciones y dar consejos financieros básicos en pesos colombianos.",
+      "metrics": ["turn_relevancy", "conversation_completeness", "knowledge_retention", "role_adherence"],
+      "user_turns": [
+        "¿Qué es la regla del 50/30/20 en finanzas personales?",
+        "¿Cómo aplicaría esa regla con mis ingresos actuales?",
+        "¿Cuánto de mis gastos actuales se ajusta a esa regla y qué debería cambiar?"
+      ]
+    },
+    {
+      "id": "MT-I1",
+      "use_case": "insight",
+      "description": "Diagnóstico completo de situación financiera con identificación de riesgos y fortalezas",
+      "scenario": "Usuario pide un diagnóstico completo de su salud financiera y luego profundiza en los puntos más preocupantes y sus fortalezas.",
+      "expected_outcome": "El asistente debe sintetizar ingresos, gastos, tasa de ahorro del 36% y presupuestos en un diagnóstico coherente, señalar Comida excedida como riesgo principal y el buen ahorro como fortaleza.",
+      "chatbot_role": "Asistente financiero personal que ayuda a registrar transacciones y dar consejos financieros básicos en pesos colombianos.",
+      "metrics": ["turn_relevancy", "conversation_completeness", "knowledge_retention", "role_adherence"],
+      "user_turns": [
+        "Dame un diagnóstico completo de mi situación financiera este mes",
+        "¿Cuáles son los puntos más preocupantes que ves en mis finanzas?",
+        "¿Y cuáles son mis fortalezas financieras que debo mantener?"
+      ]
+    },
+    {
+      "id": "MT-I2",
+      "use_case": "insight",
+      "description": "Plan de reducción de gastos por categoría con impacto proyectado en tasa de ahorro",
+      "scenario": "Usuario quiere identificar las categorías con más oportunidad de ahorro, obtener un plan concreto y entender el impacto en su tasa de ahorro total.",
+      "expected_outcome": "El asistente debe priorizar Comida (excedida en 200.000 COP) y Otros (800.000 COP sin presupuesto), dar un plan concreto para reducir 300.000 COP y calcular el impacto en la tasa de ahorro.",
+      "chatbot_role": "Asistente financiero personal que ayuda a registrar transacciones y dar consejos financieros básicos en pesos colombianos.",
+      "metrics": ["turn_relevancy", "conversation_completeness", "knowledge_retention", "role_adherence"],
+      "user_turns": [
+        "¿En qué categorías tengo más oportunidad de reducir gastos?",
+        "Dame un plan concreto para reducir 300000 pesos en gastos el próximo mes",
+        "¿Cómo impactaría ese ahorro adicional en mi tasa de ahorro total?"
+      ]
+    },
+    {
+      "id": "MT-I3",
+      "use_case": "insight",
+      "description": "Análisis del estado de presupuestos con identificación de categorías sin control y recomendaciones",
+      "scenario": "Usuario explora el estado general de sus presupuestos, identifica qué categorías importantes no tienen presupuesto y pide recomendaciones de límites.",
+      "expected_outcome": "El asistente debe analizar Comida (excedida) y Entretenimiento (dentro del límite), señalar Otros (800.000 COP) y Transporte (400.000 COP) como categorías sin presupuesto y dar límites recomendados.",
+      "chatbot_role": "Asistente financiero personal que ayuda a registrar transacciones y dar consejos financieros básicos en pesos colombianos.",
+      "metrics": ["turn_relevancy", "conversation_completeness", "knowledge_retention", "role_adherence"],
+      "user_turns": [
+        "¿Cómo está el estado general de mis presupuestos este mes?",
+        "¿Qué categorías importantes no tienen presupuesto asignado?",
+        "¿Qué límite me recomendarías para la categoría Otros basándote en mis ingresos?"
+      ]
+    },
+    {
+      "id": "MT-I4",
+      "use_case": "insight",
+      "description": "Proyección financiera con ajustes progresivos en dos categorías de gasto",
+      "scenario": "Usuario quiere proyectar el impacto de reducir gastos en Comida y luego en Otros, calculando la nueva tasa de ahorro resultante.",
+      "expected_outcome": "El asistente debe usar los datos actuales (ingresos 5.000.000, gastos 3.200.000, ahorro 36%) como base y calcular proyecciones coherentes: -200K Comida → ahorro 40%, -100K Otros adicional → ahorro 42%.",
+      "chatbot_role": "Asistente financiero personal que ayuda a registrar transacciones y dar consejos financieros básicos en pesos colombianos.",
+      "metrics": ["turn_relevancy", "conversation_completeness", "knowledge_retention", "role_adherence"],
+      "user_turns": [
+        "¿Qué pasaría con mi ahorro si logro reducir 200000 pesos en comida el próximo mes?",
+        "¿Y si además reduzco 100000 en la categoría Otros?",
+        "¿Con esos dos cambios cuál sería mi nueva tasa de ahorro aproximada?"
+      ]
+    },
+    {
+      "id": "MT-I5",
+      "use_case": "insight",
+      "description": "Evaluación de la distribución del gasto como porcentaje del ingreso con comparación a referencia ideal",
+      "scenario": "Usuario principiante quiere entender qué porcentaje del ingreso destina a cada categoría, si esa distribución es saludable y cuál sería la distribución ideal.",
+      "expected_outcome": "El asistente debe calcular porcentajes (Comida 24%, Transporte 8%, Entretenimiento 6%, Servicios 10%, Otros 16%), señalar que Comida supera el 10-15% recomendado y dar una distribución ideal ajustada al nivel principiante.",
+      "chatbot_role": "Asistente financiero personal que ayuda a registrar transacciones y dar consejos financieros básicos en pesos colombianos.",
+      "metrics": ["turn_relevancy", "conversation_completeness", "knowledge_retention", "role_adherence"],
+      "user_turns": [
+        "¿Qué porcentaje de mis ingresos destino a cada categoría de gasto?",
+        "¿Esa distribución es saludable para alguien con mi nivel financiero?",
+        "¿Cuál sería la distribución ideal que debería apuntar a tener?"
+      ]
+    }
+  ]
+}

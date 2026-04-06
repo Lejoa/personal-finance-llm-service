@@ -31,6 +31,23 @@ services:
     profiles:
       - test-quality
 
+  llm-multi-turn-tests:
+    image: llm-service
+    container_name: llm-multi-turn-tests
+    volumes:
+      - ./tests:/app/tests
+    environment:
+      - BASE_URL=http://llm-service:8000
+      - OLLAMA_API_KEY=${OLLAMA_API_KEY}
+      - LLM_MODEL=${LLM_MODEL}
+    command: >
+      python tests/test_multi_turn.py
+      --base-url http://llm-service:8000
+    networks:
+      - default
+    profiles:
+      - test-multi-turn
+
 networks:
   default:
     name: personal-finance-llm-service_default
