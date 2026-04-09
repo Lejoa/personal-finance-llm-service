@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 from langchain_core.prompts import PromptTemplate
 
@@ -33,3 +34,14 @@ def build_financial_chain():
     chain = prompt | llm
 
     return chain
+
+
+# Singleton — se construye una vez al arrancar el servicio
+_financial_chain: Any | None = None
+
+
+def get_financial_chain():
+    global _financial_chain
+    if _financial_chain is None:
+        _financial_chain = build_financial_chain()
+    return _financial_chain

@@ -10,7 +10,7 @@ Métricas evaluadas:
   - ContextualPrecision:  ¿los fragmentos del contexto usados son los correctos?
 
 Prerrequisitos:
-  - OLLAMA_API_KEY y LLM_MODEL definidas en .env
+  - OLLAMA_API_KEY, LLM_MODEL (modelo bajo prueba) y JUDGE_MODEL (juez DeepEval, default gpt-oss:120b-cloud) definidas en .env
   - Servicio llm-service corriendo: docker compose up -d
 
 Uso con Docker (recomendado):
@@ -22,6 +22,7 @@ Los resultados se guardan en tests/results/quality_<modelo>_<timestamp>.json
 """
 
 import argparse
+import asyncio
 import json
 import os
 import sys
@@ -45,7 +46,7 @@ SCRIPT_DIR = Path(__file__).parent
 QUALITY_TEST_CASES_PATH = SCRIPT_DIR / "quality_test_cases.json"
 RESULTS_DIR = SCRIPT_DIR / "results"
 DEFAULT_BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
-REQUEST_TIMEOUT = 120.0
+REQUEST_TIMEOUT = 300.0
 
 METRIC_THRESHOLD = 0.7
 
@@ -67,7 +68,7 @@ class OllamaCloudJudge(DeepEvalBaseLLM):
 
     def __init__(self):
         self._model = ChatOpenAI(
-            model=os.getenv("LLM_MODEL", "gpt-oss:120b-cloud"),
+            model=os.getenv("JUDGE_MODEL", "gpt-oss:120b"),
             api_key=os.getenv("OLLAMA_API_KEY"),
             base_url="https://ollama.com/v1",
         )
@@ -83,7 +84,7 @@ class OllamaCloudJudge(DeepEvalBaseLLM):
         return res.content
 
     def get_model_name(self) -> str:
-        return f"ollama-cloud/{os.getenv('LLM_MODEL', 'gpt-oss:120b-cloud')}"
+        return f"ollama-cloud/{os.getenv('JUDGE_MODEL', 'gpt-oss:120b')}"
 
 
 # ---------------------------------------------------------------------------
@@ -191,28 +192,42 @@ def run_single_test(
     metric_results = {}
     all_passed = True
 
-    for metric in metrics:
+    async def measure_metric(metric):
+        t0 = time.time()
         try:
-            metric.measure(test_case)
+            await metric.a_measure(test_case)
+            judge_ms = round((time.time() - t0) * 1000, 2)
             passed = metric.score >= METRIC_THRESHOLD
-            metric_results[metric.__class__.__name__] = {
+            return metric.__class__.__name__, {
                 "score": round(metric.score, 4),
                 "threshold": METRIC_THRESHOLD,
                 "passed": passed,
                 "reason": metric.reason,
+                "judge_time_ms": judge_ms,
             }
-            if not passed:
-                all_passed = False
         except Exception as e:
-            metric_results[metric.__class__.__name__] = {
+            judge_ms = round((time.time() - t0) * 1000, 2)
+            return metric.__class__.__name__, {
                 "score": None,
                 "passed": False,
                 "error": str(e),
+                "judge_time_ms": judge_ms,
             }
+
+    async def run_all_metrics():
+        return await asyncio.gather(*[measure_metric(m) for m in metrics])
+
+    judge_start = time.time()
+    results_list = asyncio.run(run_all_metrics())
+    total_judge_ms = round((time.time() - judge_start) * 1000, 2)
+
+    for name, result in results_list:
+        metric_results[name] = result
+        if not result.get("passed", False):
             all_passed = False
 
     status = "PASS" if all_passed else "FAIL"
-    print(f"{status} ({elapsed_ms:.0f}ms)")
+    print(f"{status} (llm={elapsed_ms:.0f}ms judge={total_judge_ms:.0f}ms)")
 
     return {
         "id": test["id"],
@@ -220,7 +235,9 @@ def run_single_test(
         "actual_output": actual_output,
         "description": test.get("description", ""),
         "metrics_evaluated": test["metrics"],
-        "response_time_ms": elapsed_ms,
+        "llm_time_ms": elapsed_ms,
+        "judge_time_ms": total_judge_ms,
+        "total_time_ms": round(elapsed_ms + total_judge_ms, 2),
         "passed": all_passed,
         "metric_results": metric_results,
     }
@@ -230,22 +247,41 @@ def run_single_test(
 # Cálculo de scores agregados
 # ---------------------------------------------------------------------------
 
-def calculate_scores(results: list) -> dict:
+def calculate_scores(results: list, wall_time_ms: float = 0.0) -> dict:
     # Todos los casos, incluyendo errores, cuentan para total y passed
     total = len(results)
     passed = sum(1 for r in results if r.get("passed", False))
     errors = sum(1 for r in results if "error" in r)
 
-    times = [r["response_time_ms"] for r in results]
-    times_sorted = sorted(times)
+    llm_times = [r.get("llm_time_ms", r.get("response_time_ms", 0)) for r in results]
+    judge_times = [r.get("judge_time_ms", 0) for r in results]
+    total_times = [r.get("total_time_ms", llm_times[i]) for i, r in enumerate(results)]
+    times_sorted = sorted(llm_times)
 
     timing = {}
-    if times:
+    if llm_times:
         p95_idx = min(int(len(times_sorted) * 0.95), len(times_sorted) - 1)
         timing = {
-            "avg_ms": round(sum(times) / len(times), 2),
-            "min_ms": round(min(times), 2),
-            "max_ms": round(max(times), 2),
+            "llm": {
+                "avg_ms": round(sum(llm_times) / len(llm_times), 2),
+                "min_ms": round(min(llm_times), 2),
+                "max_ms": round(max(llm_times), 2),
+                "p95_ms": round(times_sorted[p95_idx], 2),
+            },
+            "judge": {
+                "avg_ms": round(sum(judge_times) / len(judge_times), 2),
+                "min_ms": round(min(judge_times), 2),
+                "max_ms": round(max(judge_times), 2),
+                "total_ms": round(sum(judge_times), 2),
+            },
+            "total": {
+                "avg_ms": round(sum(total_times) / len(total_times), 2),
+                "wall_time_ms": round(wall_time_ms, 2),
+            },
+            # Retrocompatibilidad con compare_results.py
+            "avg_ms": round(sum(llm_times) / len(llm_times), 2),
+            "min_ms": round(min(llm_times), 2),
+            "max_ms": round(max(llm_times), 2),
             "p95_ms": round(times_sorted[p95_idx], 2),
         }
 
@@ -297,11 +333,21 @@ def print_summary(judge_name: str, scores: dict):
     print("=" * 65)
 
     timing = scores.get("timing", {})
-    print("\n  Tiempos de respuesta (llamada al LLM):")
-    print(f"    Promedio: {timing.get('avg_ms', 0) / 1000:.1f}s")
-    print(f"    Mínimo:   {timing.get('min_ms', 0) / 1000:.1f}s")
-    print(f"    Máximo:   {timing.get('max_ms', 0) / 1000:.1f}s")
-    print(f"    P95:      {timing.get('p95_ms', 0) / 1000:.1f}s")
+    llm_t = timing.get("llm", timing)
+    judge_t = timing.get("judge", {})
+    total_t = timing.get("total", {})
+    print("\n  Tiempos de respuesta — LLM bajo prueba:")
+    print(f"    Promedio: {llm_t.get('avg_ms', 0) / 1000:.1f}s")
+    print(f"    Mínimo:   {llm_t.get('min_ms', 0) / 1000:.1f}s")
+    print(f"    Máximo:   {llm_t.get('max_ms', 0) / 1000:.1f}s")
+    print(f"    P95:      {llm_t.get('p95_ms', 0) / 1000:.1f}s")
+    if judge_t:
+        print(f"\n  Tiempos del juez (DeepEval, paralelo por test):")
+        print(f"    Promedio por test: {judge_t.get('avg_ms', 0) / 1000:.1f}s")
+        print(f"    Máximo por test:   {judge_t.get('max_ms', 0) / 1000:.1f}s")
+        print(f"    Total acumulado:   {judge_t.get('total_ms', 0) / 1000:.1f}s")
+    if total_t:
+        print(f"\n  Tiempo total de la suite (wall clock): {total_t.get('wall_time_ms', 0) / 1000:.1f}s")
 
     ov = scores["overall"]
     print(f"\n  Resultado general: {ov['passed']}/{ov['total']} casos pasaron — {ov['score_pct']}%")
@@ -373,6 +419,7 @@ def save_results(judge_name: str, results: list, scores: dict):
 
     output = {
         "judge": judge_name,
+        "model": os.getenv("LLM_MODEL", "unknown"),
         "threshold": METRIC_THRESHOLD,
         "timestamp": datetime.now().isoformat(),
         "scores": scores,
@@ -423,14 +470,16 @@ def main():
     print()
 
     results = []
+    suite_start = time.time()
     with httpx.Client() as client:
         print(f"--- CALIDAD ({len(test_cases)} tests) ---")
         for test in test_cases:
             result = run_single_test(client, args.base_url, financial_context, test, judge)
             results.append(result)
         print()
+    wall_time_ms = (time.time() - suite_start) * 1000
 
-    scores = calculate_scores(results)
+    scores = calculate_scores(results, wall_time_ms)
     print_summary(judge_name, scores)
     save_results(judge_name, results, scores)
 

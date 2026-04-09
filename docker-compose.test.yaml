@@ -1,6 +1,9 @@
 services:
   llm-tests:
-    image: llm-service
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    image: llm-service-test
     container_name: llm-tests
     volumes:
       - ./tests:/app/tests
@@ -15,7 +18,10 @@ services:
       - test
 
   llm-quality-tests:
-    image: llm-service
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    image: llm-service-test
     container_name: llm-quality-tests
     volumes:
       - ./tests:/app/tests
@@ -23,6 +29,7 @@ services:
       - BASE_URL=http://llm-service:8000
       - OLLAMA_API_KEY=${OLLAMA_API_KEY}
       - LLM_MODEL=${LLM_MODEL}
+      - JUDGE_MODEL=${JUDGE_MODEL:-gpt-oss:120b}
     command: >
       python tests/test_llm_quality.py
       --base-url http://llm-service:8000
@@ -32,7 +39,10 @@ services:
       - test-quality
 
   llm-multi-turn-tests:
-    image: llm-service
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    image: llm-service-test
     container_name: llm-multi-turn-tests
     volumes:
       - ./tests:/app/tests
@@ -40,6 +50,7 @@ services:
       - BASE_URL=http://llm-service:8000
       - OLLAMA_API_KEY=${OLLAMA_API_KEY}
       - LLM_MODEL=${LLM_MODEL}
+      - JUDGE_MODEL=${JUDGE_MODEL:-gpt-oss:120b}
     command: >
       python tests/test_multi_turn.py
       --base-url http://llm-service:8000

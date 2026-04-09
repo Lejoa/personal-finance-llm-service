@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
@@ -61,3 +62,14 @@ def build_chat_chain_structured():
     chain = prompt | llm | JsonOutputParser()
 
     return chain
+
+
+# Singleton — se construye una vez al arrancar el servicio
+_chat_chain_structured: Any | None = None
+
+
+def get_chat_chain_structured():
+    global _chat_chain_structured
+    if _chat_chain_structured is None:
+        _chat_chain_structured = build_chat_chain_structured()
+    return _chat_chain_structured

@@ -34,6 +34,8 @@ services:
       - ./app:/app/app
     env_file:
       - .env
+    environment:
+      - LLM_MODEL=${LLM_MODEL:-gpt-oss:120b-cloud}
     depends_on:
       ollama:
         condition: service_healthy

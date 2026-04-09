@@ -1,3 +1,4 @@
+import logging
 from datetime import date as date_type
 
 from fastapi import APIRouter, HTTPException
@@ -11,11 +12,40 @@ from app.models.schemas import (
     TransactionAction,
     GuardrailsErrorResponse,
 )
-from app.services.financial_chain import build_financial_chain
-from app.services.chat_chain import build_chat_chain_structured
+from app.services.financial_chain import get_financial_chain
+from app.services.chat_chain import get_chat_chain_structured
 from app.services.guardrails_service import get_guardrails_service, GuardrailsValidationError
+from app.services.llm_provider import get_llm_provider
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/llm", tags=["LLM"])
+
+
+@router.get(
+    "/smoke-test",
+    summary="Verifica que el LLM responde correctamente",
+    description=(
+        "Envía un prompt mínimo al LLM configurado y retorna la respuesta cruda. "
+        "Útil para verificar conectividad y disponibilidad del modelo antes de "
+        "ejecutar suites de evaluación."
+    ),
+)
+def smoke_test():
+    try:
+        llm = get_llm_provider()
+        response = llm.invoke("Responde solo con la palabra 'ok'.")
+        content = response.content if hasattr(response, "content") else str(response)
+        return {
+            "status": "ok",
+            "model_response": content.strip(),
+        }
+    except Exception as exc:
+        logger.exception("smoke-test LLM error")
+        raise HTTPException(status_code=500, detail={
+            "error": type(exc).__name__,
+            "message": str(exc),
+        })
 
 
 @router.post(
@@ -59,7 +89,7 @@ def get_financial_insights(payload: FinancialInsightsRequest):
         })
 
     # 2. Invocar el LLM
-    chain = build_financial_chain()
+    chain = get_financial_chain()
 
     categories = ", ".join([
         f"{c.name}: {c.amount} {payload.user_context.currency}"
@@ -166,7 +196,7 @@ def chat(payload: ChatRequest):
         })
 
     # 2. Invocar el chain — JsonOutputParser retorna dict directamente
-    chain = build_chat_chain_structured()
+    chain = get_chat_chain_structured()
 
     categories_str = ", ".join([
         f"{c.name}: {c.amount} {payload.user_context.currency}"
@@ -197,6 +227,12 @@ def chat(payload: ChatRequest):
             "message": payload.message,
             "transaction_data": None,
         }
+    except Exception as exc:
+        logger.exception("LLM chain.invoke error in /chat")
+        raise HTTPException(status_code=500, detail={
+            "error": type(exc).__name__,
+            "message": str(exc),
+        })
 
     intent = parsed.get("intent", "question")
     message_content = parsed.get("message", "")

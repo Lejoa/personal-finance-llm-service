@@ -1,0 +1,4 @@
+FROM llm-service
+
+COPY requirements-test.txt .
+RUN pip install --no-cache-dir deepeval pytest

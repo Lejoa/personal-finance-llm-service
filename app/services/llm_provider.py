@@ -21,20 +21,17 @@ def get_llm_provider() -> BaseChatModel:
         )
 
     elif provider == "ollama-cloud":
-        from langchain_ollama import ChatOllama
+        from langchain_openai import ChatOpenAI
 
         api_key = os.getenv("OLLAMA_API_KEY", "")
         if not api_key:
             raise ValueError("OLLAMA_API_KEY is required for ollama-cloud provider")
 
-        return ChatOllama(
-            model=os.getenv("LLM_MODEL", "gemma2:2b"),
-            base_url="https://ollama.com",
+        return ChatOpenAI(
+            model=os.getenv("LLM_MODEL", "gpt-oss:120b"),
+            base_url="https://ollama.com/v1",
+            api_key=api_key,
             temperature=float(os.getenv("LLM_TEMPERATURE", "0.3")),
-            num_ctx=int(os.getenv("OLLAMA_NUM_CTX", "4096")),
-            client_kwargs={
-                "headers": {"Authorization": f"Bearer {api_key}"}
-            },
         )
 
     elif provider == "openai":

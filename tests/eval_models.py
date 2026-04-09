@@ -30,7 +30,7 @@ SCRIPT_DIR = Path(__file__).parent
 TEST_CASES_PATH = SCRIPT_DIR / "test_cases.json"
 RESULTS_DIR = SCRIPT_DIR / "results"
 DEFAULT_BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
-REQUEST_TIMEOUT = 120.0
+REQUEST_TIMEOUT = 300.0
 
 
 def load_test_cases() -> dict:
@@ -114,11 +114,32 @@ def run_single_test(
             "error": "TIMEOUT",
             "evaluation": {"passed": False, "evaluation": "ERROR: Timeout"},
         }
+    except httpx.RequestError as exc:
+        elapsed_ms = (time.time() - start) * 1000
+        error_type = type(exc).__name__
+        print(f"ERROR ({error_type}) ({elapsed_ms:.0f}ms)")
+        return {
+            "id": test["id"],
+            "category": test["category"],
+            "subcategory": test.get("subcategory", ""),
+            "question": test["question"],
+            "description": test.get("description", ""),
+            "status_code": None,
+            "response_time_ms": round(elapsed_ms, 2),
+            "error": f"{error_type}: {exc}",
+            "evaluation": {"passed": False, "evaluation": f"ERROR: {error_type}"},
+        }
 
     evaluation = evaluate_guardrail(test, status_code, response_body)
+    error_detail = None
+    if status_code >= 500 and response_body:
+        error_detail = {
+            "error": response_body.get("detail", {}).get("error", ""),
+            "message": response_body.get("detail", {}).get("message", str(response_body)),
+        }
     print(f"{evaluation['evaluation']} ({elapsed_ms:.0f}ms)")
 
-    return {
+    record = {
         "id": test["id"],
         "category": test["category"],
         "subcategory": test.get("subcategory", ""),
@@ -129,6 +150,9 @@ def run_single_test(
         "response_time_ms": round(elapsed_ms, 2),
         "evaluation": evaluation,
     }
+    if error_detail:
+        record["error_detail"] = error_detail
+    return record
 
 
 def calculate_scores(results: list) -> dict:
@@ -275,6 +299,27 @@ def main():
                 model_name = llm_health.json().get("provider", "unknown")
         except Exception:
             model_name = "unknown"
+
+    # --- SMOKE TEST — verifica que el LLM responde antes de evaluar ---
+    print(f"\n  Smoke test del LLM ({args.base_url}/llm/smoke-test)...")
+    try:
+        with httpx.Client() as client:
+            smoke = client.get(f"{args.base_url}/llm/smoke-test", timeout=REQUEST_TIMEOUT)
+            if smoke.status_code == 200:
+                body = smoke.json()
+                print(f"  LLM responde OK → {body.get('model_response', '')!r}")
+            else:
+                body = smoke.json() if smoke.headers.get("content-type", "").startswith("application/json") else {}
+                print(f"  SMOKE TEST FALLÓ — HTTP {smoke.status_code}")
+                print(f"  Error: {body.get('error', '')} — {body.get('message', '')}")
+                print("  Abortando evaluación: el modelo no está disponible o no responde.")
+                sys.exit(1)
+    except httpx.TimeoutException:
+        print("  SMOKE TEST TIMEOUT — el modelo no respondió en el tiempo límite.")
+        sys.exit(1)
+    except Exception as e:
+        print(f"  SMOKE TEST ERROR — {type(e).__name__}: {e}")
+        sys.exit(1)
 
     off_count = sum(1 for t in test_cases if t.get("subcategory") == "off_topic")
     on_count = sum(1 for t in test_cases if t.get("subcategory") == "on_topic")
