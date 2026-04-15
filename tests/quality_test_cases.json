@@ -25,61 +25,11 @@
   },
   "test_cases": [
     {
-      "id": "Q1",
-      "metrics": ["answer_relevancy"],
-      "input": "¿Cómo puedo mejorar mi tasa de ahorro?",
-      "description": "Pregunta general sobre mejora de ahorro con contexto financiero del usuario",
-      "retrieval_context": [
-        "El usuario tiene ingresos de 5.000.000 COP y gastos de 3.200.000 COP en febrero de 2026.",
-        "La tasa de ahorro actual del usuario es del 36%, calculada como (ingresos - gastos) / ingresos.",
-        "El presupuesto de Comida está excedido: se gastaron 1.200.000 COP sobre un límite de 1.000.000 COP.",
-        "El presupuesto de Entretenimiento está dentro del límite: 300.000 COP gastados de 350.000 COP disponibles.",
-        "Reducir gastos en la categoría con mayor exceso presupuestario es la estrategia más directa para aumentar el ahorro."
-      ],
-      "expected_output": "Con una tasa de ahorro del 36% y un exceso en Comida de 200.000 COP, reducir ese gasto mejoraría directamente el ahorro disponible."
-    },
-    {
-      "id": "Q2",
-      "metrics": ["answer_relevancy", "faithfulness"],
-      "input": "¿En qué categoría gasté más este mes?",
-      "description": "Pregunta directa sobre la categoría de mayor gasto - verificable con datos del contexto",
-      "retrieval_context": [
-        "Las categorías de gasto del usuario en febrero de 2026 son: Comida 1.200.000 COP, Transporte 400.000 COP, Entretenimiento 300.000 COP, Servicios 500.000 COP, Otros 800.000 COP.",
-        "Comida es la categoría con mayor gasto absoluto con 1.200.000 COP.",
-        "El total de gastos del mes es 3.200.000 COP distribuidos en 5 categorías."
-      ],
-      "expected_output": "La categoría con mayor gasto en febrero fue Comida con 1.200.000 COP, representando el 37.5% del total de gastos."
-    },
-    {
-      "id": "Q3",
-      "metrics": ["answer_relevancy", "faithfulness"],
-      "input": "¿Cuál es mi tasa de ahorro este mes?",
-      "description": "Pregunta sobre tasa de ahorro - dato explícito en el contexto financiero",
-      "retrieval_context": [
-        "Los ingresos del usuario en febrero de 2026 son 5.000.000 COP.",
-        "Los gastos totales del usuario en febrero de 2026 son 3.200.000 COP.",
-        "La tasa de ahorro es del 36%, calculada como (5.000.000 - 3.200.000) / 5.000.000.",
-        "El ahorro absoluto del mes es 1.800.000 COP."
-      ],
-      "expected_output": "Tu tasa de ahorro en febrero es del 36%, equivalente a 1.800.000 COP ahorrados de tus ingresos de 5.000.000 COP."
-    },
-    {
-      "id": "Q4",
-      "metrics": ["answer_relevancy", "contextual_relevancy"],
-      "input": "¿Qué presupuestos tengo excedidos?",
-      "description": "Pregunta sobre presupuestos excedidos - requiere comparar spent vs limit del contexto",
-      "retrieval_context": [
-        "El presupuesto de Comida tiene un límite de 1.000.000 COP y se han gastado 1.200.000 COP, un exceso de 200.000 COP.",
-        "El presupuesto de Entretenimiento tiene un límite de 350.000 COP y se han gastado 300.000 COP, dentro del límite.",
-        "Solo el presupuesto de Comida está excedido en el período actual."
-      ],
-      "expected_output": "El presupuesto de Comida está excedido en 200.000 COP: gastaste 1.200.000 COP de un límite de 1.000.000 COP."
-    },
-    {
       "id": "Q5",
+      "context_type": "question",
       "metrics": ["answer_relevancy", "faithfulness", "contextual_relevancy", "contextual_recall", "contextual_precision"],
       "input": "Dame un resumen de mi situación financiera de este mes",
-      "description": "Pregunta integral que requiere sintetizar todos los datos del contexto - prueba todas las métricas",
+      "description": "question: pregunta integral que sintetiza todos los datos del contexto base — cubre todas las métricas",
       "retrieval_context": [
         "Período evaluado: febrero de 2026.",
         "Ingresos mensuales: 5.000.000 COP.",
@@ -92,147 +42,12 @@
       ],
       "expected_output": "En febrero tuviste ingresos de 5.000.000 COP, gastos de 3.200.000 COP y una tasa de ahorro del 36%. Tu mayor gasto fue Comida con 1.200.000 COP, presupuesto que excediste en 200.000 COP."
     },
-
-    {
-      "id": "Q6",
-      "metrics": ["answer_relevancy"],
-      "input": "¿Cuánto dinero me sobra al final del mes?",
-      "description": "answer_relevancy: pregunta directa sobre flujo neto mensual",
-      "retrieval_context": [
-        "Los ingresos del usuario en febrero de 2026 son 5.000.000 COP.",
-        "Los gastos totales del usuario en febrero de 2026 son 3.200.000 COP.",
-        "El flujo neto mensual (ingresos - gastos) es 1.800.000 COP.",
-        "Este sobrante representa el 36% de los ingresos mensuales."
-      ],
-      "expected_output": "Al final del mes te sobran 1.800.000 COP, que equivalen al 36% de tus ingresos de 5.000.000 COP."
-    },
-    {
-      "id": "Q7",
-      "metrics": ["answer_relevancy"],
-      "input": "¿Cuáles son mis cinco categorías de gasto este mes?",
-      "description": "answer_relevancy: pregunta de enumeración directa de categorías del contexto",
-      "retrieval_context": [
-        "Las categorías de gasto del usuario en febrero de 2026 son: Comida, Transporte, Entretenimiento, Servicios y Otros.",
-        "Los montos por categoría son: Comida 1.200.000 COP, Otros 800.000 COP, Servicios 500.000 COP, Transporte 400.000 COP, Entretenimiento 300.000 COP.",
-        "El total de gastos es 3.200.000 COP distribuido en estas cinco categorías."
-      ],
-      "expected_output": "Tus cinco categorías de gasto en febrero son: Comida (1.200.000), Otros (800.000), Servicios (500.000), Transporte (400.000) y Entretenimiento (300.000)."
-    },
-    {
-      "id": "Q8",
-      "metrics": ["answer_relevancy"],
-      "input": "¿Tengo presupuesto disponible en entretenimiento?",
-      "description": "answer_relevancy: consulta puntual sobre estado de un presupuesto específico",
-      "retrieval_context": [
-        "El presupuesto de Entretenimiento tiene un límite de 350.000 COP.",
-        "El gasto actual en Entretenimiento es de 300.000 COP.",
-        "Queda un margen disponible de 50.000 COP en el presupuesto de Entretenimiento."
-      ],
-      "expected_output": "Sí, tienes 50.000 COP disponibles en Entretenimiento: gastaste 300.000 COP de un límite de 350.000 COP."
-    },
-    {
-      "id": "Q9",
-      "metrics": ["answer_relevancy"],
-      "input": "¿Cuál es mi nivel de conocimiento financiero según la app?",
-      "description": "answer_relevancy: consulta sobre atributo del perfil del usuario",
-      "retrieval_context": [
-        "El nivel financiero del usuario está configurado como 'beginner' (principiante).",
-        "El nivel principiante implica que las respuestas y recomendaciones se adaptan a conceptos básicos de finanzas personales.",
-        "El usuario puede avanzar al nivel intermedio cuando demuestre consistencia en el ahorro y control presupuestario."
-      ],
-      "expected_output": "Tu nivel financiero en la app es principiante. Las recomendaciones están adaptadas a conceptos básicos de finanzas personales."
-    },
-    {
-      "id": "Q10",
-      "metrics": ["answer_relevancy"],
-      "input": "¿Qué mes corresponde a los datos de mi resumen financiero?",
-      "description": "answer_relevancy: consulta temporal directa verificable en el contexto",
-      "retrieval_context": [
-        "El período evaluado en el resumen financiero del usuario es febrero de 2026.",
-        "El resumen abarca desde el 1 hasta el 28 de febrero de 2026.",
-        "Los ingresos y gastos reportados corresponden exclusivamente a este período."
-      ],
-      "expected_output": "Los datos de tu resumen financiero corresponden a febrero de 2026."
-    },
-
-    {
-      "id": "Q11",
-      "metrics": ["faithfulness"],
-      "input": "¿Cuánto gasté en servicios este mes?",
-      "description": "faithfulness: verifica que el LLM no invente cifras fuera del contexto para un gasto puntual",
-      "retrieval_context": [
-        "El gasto del usuario en la categoría Servicios en febrero de 2026 es de 500.000 COP.",
-        "Servicios representa el 15.6% del total de gastos mensuales de 3.200.000 COP.",
-        "No existe presupuesto asignado para la categoría Servicios en el período actual."
-      ],
-      "expected_output": "Gastaste 500.000 COP en Servicios en febrero, lo que equivale al 15.6% de tus gastos totales."
-    },
-    {
-      "id": "Q12",
-      "metrics": ["faithfulness"],
-      "input": "¿Cuánto es mi ingreso mensual?",
-      "description": "faithfulness: verifica que el LLM reporte exactamente el ingreso del contexto sin alterarlo",
-      "retrieval_context": [
-        "Los ingresos del usuario en febrero de 2026 son 5.000.000 COP.",
-        "Este ingreso es la base de cálculo para la tasa de ahorro del 36%."
-      ],
-      "expected_output": "Tu ingreso mensual en febrero es de 5.000.000 COP."
-    },
-    {
-      "id": "Q13",
-      "metrics": ["faithfulness"],
-      "input": "¿En cuánto excedí el presupuesto de comida?",
-      "description": "faithfulness: pregunta aritmética con dato calculable directamente del contexto - sin margen para alucinación",
-      "retrieval_context": [
-        "El presupuesto de Comida tiene un límite de 1.000.000 COP.",
-        "El gasto real en Comida en febrero de 2026 fue de 1.200.000 COP.",
-        "El exceso sobre el presupuesto de Comida es de 200.000 COP (1.200.000 - 1.000.000)."
-      ],
-      "expected_output": "Excediste el presupuesto de Comida en 200.000 COP: gastaste 1.200.000 COP con un límite de 1.000.000 COP."
-    },
-    {
-      "id": "Q14",
-      "metrics": ["faithfulness"],
-      "input": "¿Cuánto representa mi gasto en Otros respecto al total de gastos?",
-      "description": "faithfulness: pregunta de proporción con datos exactos en el contexto - detecta cifras inventadas",
-      "retrieval_context": [
-        "El gasto en la categoría Otros en febrero de 2026 es de 800.000 COP.",
-        "El total de gastos del mes es de 3.200.000 COP.",
-        "La categoría Otros representa el 25% del total de gastos mensuales (800.000 / 3.200.000)."
-      ],
-      "expected_output": "La categoría Otros representa el 25% de tus gastos totales, con 800.000 COP de un total de 3.200.000 COP."
-    },
-    {
-      "id": "Q15",
-      "metrics": ["faithfulness"],
-      "input": "¿Cuántos presupuestos tengo configurados y cuáles son?",
-      "description": "faithfulness: verifica enumeración exacta sin añadir presupuestos inexistentes",
-      "retrieval_context": [
-        "El usuario tiene configurados 2 presupuestos: Comida y Entretenimiento.",
-        "Presupuesto de Comida: límite 1.000.000 COP, gastado 1.200.000 COP (excedido).",
-        "Presupuesto de Entretenimiento: límite 350.000 COP, gastado 300.000 COP (dentro del límite)."
-      ],
-      "expected_output": "Tienes 2 presupuestos configurados: Comida (excedido, 1.200.000 / 1.000.000 COP) y Entretenimiento (dentro del límite, 300.000 / 350.000 COP)."
-    },
-
-    {
-      "id": "Q16",
-      "metrics": ["contextual_relevancy"],
-      "input": "¿Qué categoría debería controlar mejor para mejorar mis finanzas?",
-      "description": "contextual_relevancy: el contexto debe contener información accionable sobre categorías problemáticas",
-      "retrieval_context": [
-        "El presupuesto de Comida está excedido en 200.000 COP respecto a su límite de 1.000.000 COP.",
-        "La categoría Otros (800.000 COP) no tiene presupuesto asignado, lo que dificulta el control.",
-        "Comida y Otros representan juntas el 62.5% del total de gastos mensuales.",
-        "Asignar un presupuesto a Otros y reducir Comida a su límite liberaría 200.000 COP adicionales."
-      ],
-      "expected_output": "Deberías controlar mejor Comida, que excede su presupuesto en 200.000 COP, y asignar un presupuesto a Otros para tener mayor visibilidad sobre ese gasto de 800.000 COP."
-    },
     {
       "id": "Q17",
+      "context_type": "question",
       "metrics": ["contextual_relevancy"],
       "input": "¿Qué regla financiera básica puedo aplicar con mi nivel de principiante?",
-      "description": "contextual_relevancy: el contexto debe aportar la regla financiera apropiada para el nivel del usuario",
+      "description": "question: contextual_relevancy — el contexto debe aportar la regla financiera apropiada para el nivel del usuario",
       "retrieval_context": [
         "El nivel financiero del usuario es principiante.",
         "La regla 50/30/20 es la recomendación estándar para principiantes: 50% necesidades, 30% deseos, 20% ahorro.",
@@ -242,37 +57,25 @@
       "expected_output": "Puedes aplicar la regla 50/30/20: destina el 50% (2.500.000 COP) a necesidades, el 30% (1.500.000 COP) a deseos y el 20% (1.000.000 COP) a ahorro. Con tu tasa actual del 36% ya superas esa meta."
     },
     {
-      "id": "Q18",
-      "metrics": ["contextual_relevancy"],
-      "input": "¿Qué categorías de gasto no tienen presupuesto asignado?",
-      "description": "contextual_relevancy: el contexto debe identificar claramente las categorías sin presupuesto",
+      "id": "Q3",
+      "context_type": "savings",
+      "metrics": ["answer_relevancy", "faithfulness"],
+      "input": "¿Cuál es mi tasa de ahorro este mes?",
+      "description": "savings: dato explícito en el contexto base — verifica que el LLM reporte correctamente sin alucinaciones",
       "retrieval_context": [
-        "Las categorías de gasto del usuario son: Comida, Transporte, Entretenimiento, Servicios y Otros.",
-        "Los presupuestos configurados son únicamente para Comida (1.000.000 COP) y Entretenimiento (350.000 COP).",
-        "Las categorías Transporte, Servicios y Otros no tienen presupuesto asignado.",
-        "Sin presupuesto asignado, no es posible detectar automáticamente excesos en esas categorías."
+        "Los ingresos del usuario en febrero de 2026 son 5.000.000 COP.",
+        "Los gastos totales del usuario en febrero de 2026 son 3.200.000 COP.",
+        "La tasa de ahorro es del 36%, calculada como (5.000.000 - 3.200.000) / 5.000.000.",
+        "El ahorro absoluto del mes es 1.800.000 COP."
       ],
-      "expected_output": "Las categorías Transporte (400.000 COP), Servicios (500.000 COP) y Otros (800.000 COP) no tienen presupuesto asignado. Configurarles límites ayudaría a controlar mejor tu gasto."
-    },
-    {
-      "id": "Q19",
-      "metrics": ["contextual_recall"],
-      "input": "¿Por qué es importante que no exceda mi presupuesto de comida?",
-      "description": "contextual_recall: el contexto debe cubrir el impacto del exceso presupuestario sobre el ahorro",
-      "retrieval_context": [
-        "El presupuesto de Comida está excedido en 200.000 COP respecto al límite de 1.000.000 COP.",
-        "Cada peso que excede el presupuesto reduce directamente el ahorro disponible del mes.",
-        "Reducir el gasto de Comida a su límite aumentaría el ahorro de 1.800.000 a 2.000.000 COP.",
-        "Respetar el presupuesto de Comida mejoraría la tasa de ahorro del 36% al 40%.",
-        "Mantener los presupuestos dentro del límite es el primer hábito recomendado para principiantes."
-      ],
-      "expected_output": "Exceder el presupuesto de Comida consume 200.000 COP de tu ahorro. Si lo controlas, tu tasa de ahorro subiría del 36% al 40% y ahorrarías 2.000.000 COP mensuales."
+      "expected_output": "Tu tasa de ahorro en febrero es del 36%, equivalente a 1.800.000 COP ahorrados de tus ingresos de 5.000.000 COP."
     },
     {
       "id": "Q20",
+      "context_type": "savings",
       "metrics": ["contextual_recall"],
       "input": "¿Qué tan bien me va comparado con la meta de ahorro para principiantes?",
-      "description": "contextual_recall: el contexto debe contener la meta de referencia y el dato actual del usuario para comparar",
+      "description": "savings: contextual_recall — el contexto debe contener la meta de referencia y el dato actual para comparar",
       "retrieval_context": [
         "La tasa de ahorro actual del usuario es del 36%.",
         "La meta mínima de ahorro recomendada para principiantes es el 20% de los ingresos.",
@@ -283,89 +86,56 @@
       "expected_output": "Tu tasa de ahorro del 36% supera ampliamente la meta del 20% recomendada para principiantes. Estás ahorrando 1.800.000 COP, 800.000 COP más que el mínimo de 1.000.000 COP."
     },
     {
-      "id": "Q21",
-      "metrics": ["contextual_recall"],
-      "input": "¿Cuáles son los puntos clave de mi situación presupuestaria?",
-      "description": "contextual_recall: el contexto debe cubrir todos los aspectos relevantes del estado presupuestario del usuario",
+      "id": "Q4",
+      "context_type": "budget",
+      "metrics": ["answer_relevancy", "contextual_relevancy"],
+      "input": "¿Qué presupuestos tengo excedidos?",
+      "description": "budget: requiere comparar spent vs limit — verifica relevancia de respuesta y del contexto aportado",
       "retrieval_context": [
-        "El usuario tiene 2 presupuestos configurados: Comida y Entretenimiento.",
-        "El presupuesto de Comida está excedido en 200.000 COP sobre su límite de 1.000.000 COP.",
-        "El presupuesto de Entretenimiento está dentro del límite con 50.000 COP de margen disponible.",
-        "Tres categorías (Transporte, Servicios, Otros) no tienen presupuesto asignado.",
-        "La categoría sin presupuesto con mayor gasto es Otros con 800.000 COP."
+        "El presupuesto de Comida tiene un límite de 1.000.000 COP y se han gastado 1.200.000 COP, un exceso de 200.000 COP.",
+        "El presupuesto de Entretenimiento tiene un límite de 350.000 COP y se han gastado 300.000 COP, dentro del límite.",
+        "Solo el presupuesto de Comida está excedido en el período actual."
       ],
-      "expected_output": "Puntos clave de tu situación presupuestaria: Comida excedida en 200.000 COP, Entretenimiento con 50.000 COP de margen, y tres categorías sin presupuesto asignado: Transporte, Servicios y Otros."
+      "expected_output": "El presupuesto de Comida está excedido en 200.000 COP: gastaste 1.200.000 COP de un límite de 1.000.000 COP."
     },
     {
-      "id": "Q22",
-      "metrics": ["contextual_recall"],
-      "input": "¿Qué acciones concretas me ayudarían a mejorar mi situación financiera?",
-      "description": "contextual_recall: el contexto debe proveer recomendaciones concretas que respalden el expected_output",
+      "id": "Q13",
+      "context_type": "budget",
+      "metrics": ["faithfulness"],
+      "input": "¿En cuánto excedí el presupuesto de comida?",
+      "description": "budget: faithfulness — pregunta aritmética directa, sin margen para alucinación",
       "retrieval_context": [
-        "Reducir el gasto de Comida a su límite de 1.000.000 COP liberaría 200.000 COP adicionales de ahorro.",
-        "Asignar presupuesto a la categoría Otros (800.000 COP) permitiría controlar ese gasto.",
-        "Mantener la tasa de ahorro del 36% por al menos 3 meses consecutivos es un objetivo alcanzable.",
-        "Revisar el gasto en Transporte (400.000 COP) puede revelar oportunidades de reducción.",
-        "Establecer un fondo de emergencia equivalente a 3 meses de gastos (9.600.000 COP) es la prioridad para principiantes."
+        "El presupuesto de Comida tiene un límite de 1.000.000 COP.",
+        "El gasto real en Comida en febrero de 2026 fue de 1.200.000 COP.",
+        "El exceso sobre el presupuesto de Comida es de 200.000 COP (1.200.000 - 1.000.000)."
       ],
-      "expected_output": "Las acciones concretas son: reducir Comida a 1.000.000 COP, asignar presupuesto a Otros, y construir un fondo de emergencia de 9.600.000 COP (3 meses de gastos)."
-    },
-
-    {
-      "id": "Q23",
-      "metrics": ["contextual_precision"],
-      "input": "¿Cuál es el monto exacto que excedí en mi presupuesto de comida?",
-      "description": "contextual_precision: los fragmentos más relevantes (exceso calculado) deben estar al inicio del contexto",
-      "retrieval_context": [
-        "El exceso del presupuesto de Comida es de 200.000 COP (1.200.000 gastados - 1.000.000 límite).",
-        "El presupuesto de Comida tiene un límite definido de 1.000.000 COP.",
-        "El gasto real en Comida durante febrero de 2026 fue de 1.200.000 COP.",
-        "Comida es la única categoría con presupuesto excedido en el período actual.",
-        "El nivel financiero del usuario es principiante."
-      ],
-      "expected_output": "Excediste el presupuesto de Comida en exactamente 200.000 COP: gastaste 1.200.000 COP con un límite de 1.000.000 COP."
+      "expected_output": "Excediste el presupuesto de Comida en 200.000 COP: gastaste 1.200.000 COP con un límite de 1.000.000 COP."
     },
     {
-      "id": "Q24",
-      "metrics": ["contextual_precision"],
-      "input": "¿Cuál es mi ahorro mensual en valores absolutos?",
-      "description": "contextual_precision: el fragmento con el ahorro absoluto debe estar posicionado antes de datos secundarios",
+      "id": "Q2",
+      "context_type": "categories",
+      "metrics": ["answer_relevancy", "faithfulness"],
+      "input": "¿En qué categoría gasté más este mes?",
+      "description": "categories: dato directo del contexto base — verifica relevancia y que no se inventen cifras",
       "retrieval_context": [
-        "El ahorro absoluto del usuario en febrero de 2026 es de 1.800.000 COP.",
-        "El ahorro se calcula como ingresos (5.000.000) menos gastos (3.200.000).",
-        "La tasa de ahorro porcentual equivalente es del 36%.",
-        "El nivel financiero del usuario es principiante.",
-        "El período de evaluación es febrero de 2026."
+        "Las categorías de gasto del usuario en febrero de 2026 son: Comida 1.200.000 COP, Transporte 400.000 COP, Entretenimiento 300.000 COP, Servicios 500.000 COP, Otros 800.000 COP.",
+        "Comida es la categoría con mayor gasto absoluto con 1.200.000 COP.",
+        "El total de gastos del mes es 3.200.000 COP distribuidos en 5 categorías."
       ],
-      "expected_output": "Tu ahorro mensual en valores absolutos es de 1.800.000 COP, resultado de restar tus gastos (3.200.000 COP) a tus ingresos (5.000.000 COP)."
+      "expected_output": "La categoría con mayor gasto en febrero fue Comida con 1.200.000 COP, representando el 37.5% del total de gastos."
     },
     {
-      "id": "Q25",
-      "metrics": ["contextual_precision"],
-      "input": "¿Cuánto margen me queda en el presupuesto de entretenimiento?",
-      "description": "contextual_precision: el fragmento con el margen disponible debe aparecer antes de datos irrelevantes",
+      "id": "Q11",
+      "context_type": "categories",
+      "metrics": ["faithfulness"],
+      "input": "¿Cuánto gasté en servicios este mes?",
+      "description": "categories: faithfulness — verifica que el LLM no invente cifras para un gasto puntual de categoría",
       "retrieval_context": [
-        "El margen disponible en Entretenimiento es de 50.000 COP (350.000 límite - 300.000 gastados).",
-        "El presupuesto de Entretenimiento tiene un límite de 350.000 COP.",
-        "El gasto actual en Entretenimiento es de 300.000 COP.",
-        "El presupuesto de Comida está excedido en 200.000 COP.",
-        "El total de gastos del mes es 3.200.000 COP."
+        "El gasto del usuario en la categoría Servicios en febrero de 2026 es de 500.000 COP.",
+        "Servicios representa el 15.6% del total de gastos mensuales de 3.200.000 COP.",
+        "No existe presupuesto asignado para la categoría Servicios en el período actual."
       ],
-      "expected_output": "Te quedan 50.000 COP de margen en Entretenimiento: gastaste 300.000 COP de un límite de 350.000 COP."
-    },
-    {
-      "id": "Q26",
-      "metrics": ["contextual_precision"],
-      "input": "¿Qué categoría tiene el mayor gasto absoluto este mes?",
-      "description": "contextual_precision: el fragmento con la categoría líder debe estar primero, antes de datos de otras categorías",
-      "retrieval_context": [
-        "Comida es la categoría con mayor gasto absoluto: 1.200.000 COP en febrero de 2026.",
-        "El ranking completo de categorías es: Comida (1.200.000), Otros (800.000), Servicios (500.000), Transporte (400.000), Entretenimiento (300.000).",
-        "El total de gastos es 3.200.000 COP.",
-        "El presupuesto de Entretenimiento tiene margen disponible.",
-        "El nivel financiero del usuario es principiante."
-      ],
-      "expected_output": "La categoría con mayor gasto absoluto este mes es Comida con 1.200.000 COP, representando el 37.5% de tus gastos totales."
+      "expected_output": "Gastaste 500.000 COP en Servicios en febrero, lo que equivale al 15.6% de tus gastos totales."
     }
   ]
 }

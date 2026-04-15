@@ -9,7 +9,12 @@ Valida que:
 
 Para /llm/chat se usa validate_safety() que omite RestrictToTopic:
 la detección de mensajes off_topic es responsabilidad del LLM (intent="off_topic").
+
+Nota: Guardrails no tiene API async nativa. Los métodos async_* usan
+run_in_executor para correr la validación síncrona en el threadpool de asyncio,
+evitando el warning "Could not obtain an event loop" y sin bloquear el event loop.
 """
+import asyncio
 from guardrails import Guard
 from guardrails.hub import RestrictToTopic, ToxicLanguage, DetectPII
 
@@ -149,9 +154,7 @@ class GuardrailsService:
 
     def validate_safety(self, user_message: str) -> None:
         """
-        Valida ToxicLanguage y DetectPII únicamente.
-        Usado por /llm/chat — la intención off_topic la detecta el LLM, no ALBERT.
-        Lanza GuardrailsValidationError si falla alguna validación.
+        Valida ToxicLanguage y DetectPII únicamente (versión síncrona).
         """
         try:
             self.safety_guard.validate(user_message)
@@ -175,11 +178,22 @@ class GuardrailsService:
                 error_type="unknown",
             )
 
+    async def async_validate_safety(self, user_message: str) -> None:
+        """
+        Versión async de validate_safety: corre la validación síncrona en el
+        threadpool de asyncio para evitar bloquear el event loop.
+
+        Nota: Guardrails v0.6.8 llama internamente a get_loop() que lanza RuntimeError
+        cuando detecta un event loop activo, cayendo al modo síncrono (SequentialValidatorService).
+        Esto es el comportamiento esperado — la advertencia en logs es informativa, no un error.
+        El run_in_executor es suficiente para no bloquear el event loop de FastAPI.
+        """
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, self.validate_safety, user_message)
+
     def validate_output(self, llm_response: str) -> str:
         """
-        Valida la respuesta del LLM antes de retornarla al usuario.
-        Retorna la respuesta si es válida.
-        Lanza GuardrailsValidationError si el output es inapropiado.
+        Valida la respuesta del LLM antes de retornarla al usuario (versión síncrona).
         """
         try:
             result = self.output_guard.validate(llm_response)
@@ -189,6 +203,17 @@ class GuardrailsService:
                 "La respuesta generada no pudo ser validada. Por favor intenta de nuevo.",
                 error_type="output_invalid",
             )
+
+    async def async_validate_output(self, llm_response: str) -> str:
+        """
+        Versión async de validate_output: corre la validación síncrona en el
+        threadpool de asyncio para evitar bloquear el event loop.
+
+        Nota: igual que async_validate_safety, Guardrails cae al modo síncrono por diseño.
+        La advertencia en logs es esperada en v0.6.8; la validación funciona correctamente.
+        """
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.validate_output, llm_response)
 
 
 # Singleton — se instancia una vez al inicio del servicio

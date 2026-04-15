@@ -1,0 +1,137 @@
+{
+  "description": "Test cases para evaluar el comportamiento del LLM cuando recibe additional_context poblado (Estrategia 2). Los datos de additional_context se almacenan estructurados y el script de test los formatea replicando exactamente la lógica del backend PHP (FinancialContextService).",
+  "financial_context": {
+    "user_context": {
+      "currency": "COP",
+      "locale": "es-CO",
+      "financial_level": "intermedio"
+    },
+    "financial_summary": {
+      "period": "2026-04",
+      "total_income": 5000000,
+      "total_expenses": 3200000,
+      "savings_rate": 36,
+      "previous_savings_rate": 28
+    },
+    "categories": [
+      {"name": "Comida",          "amount": 1200000},
+      {"name": "Transporte",      "amount": 400000},
+      {"name": "Entretenimiento", "amount": 300000},
+      {"name": "Servicios",       "amount": 500000},
+      {"name": "Otros",           "amount": 800000}
+    ],
+    "budgets": [
+      {"name": "Comida",          "limit": 1000000, "spent": 1200000},
+      {"name": "Entretenimiento", "limit": 350000,  "spent": 300000}
+    ]
+  },
+  "test_cases": [
+    {
+      "id": "CE1",
+      "context_type": "trends",
+      "metrics": ["answer_relevancy", "faithfulness"],
+      "input": "¿Estoy gastando más que los meses anteriores?",
+      "additional_context_data": {
+        "category_trends": [
+          {"name": "Comida",          "current_month": 1200000, "avg_3_months": 1050000, "delta_pct": 14.3},
+          {"name": "Transporte",      "current_month": 400000,  "avg_3_months": 430000,  "delta_pct": -7.0},
+          {"name": "Entretenimiento", "current_month": 300000,  "avg_3_months": 280000,  "delta_pct": 7.1},
+          {"name": "Servicios",       "current_month": 500000,  "avg_3_months": 490000,  "delta_pct": 2.0},
+          {"name": "Otros",           "current_month": 800000,  "avg_3_months": 750000,  "delta_pct": 6.7}
+        ]
+      },
+      "description": "trends: el LLM debe usar los deltas históricos del additional_context para comparar con meses anteriores, no solo los datos del mes actual",
+      "retrieval_context": [
+        "El gasto total actual es $3.200.000 COP en abril de 2026.",
+        "Comida aumentó un 14.3% respecto al promedio de los últimos 3 meses (promedio $1.050.000, actual $1.200.000 COP).",
+        "Transporte disminuyó un 7.0% respecto al promedio (promedio $430.000, actual $400.000 COP).",
+        "Entretenimiento aumentó un 7.1% (promedio $280.000, actual $300.000 COP).",
+        "Los datos históricos comparativos solo están disponibles en el additional_context."
+      ],
+      "expected_output": "En general sí, aunque no en todas las categorías. Comida subió un 14.3% sobre su promedio de 3 meses y Otros un 6.7%. Solo Transporte bajó un 7.0%, compensando parte del aumento."
+    },
+    {
+      "id": "CE3",
+      "context_type": "budget",
+      "metrics": ["answer_relevancy", "faithfulness"],
+      "input": "¿Cómo va mi presupuesto este mes?",
+      "additional_context_data": {
+        "budget_health": [
+          {"name": "Comida",          "pct_used": 120.0, "days_remaining": 18},
+          {"name": "Entretenimiento", "pct_used": 85.7,  "days_remaining": 18}
+        ]
+      },
+      "description": "budget: el LLM debe usar los porcentajes de uso y días restantes del additional_context, que no están en el contexto base",
+      "retrieval_context": [
+        "El presupuesto de Comida está al 120% de uso: gastaste $1.200.000 de un límite de $1.000.000 COP.",
+        "El presupuesto de Entretenimiento está al 85.7% de uso: gastaste $300.000 de $350.000 COP disponibles.",
+        "Quedan 18 días del mes y Entretenimiento está en zona de riesgo de excederse.",
+        "El porcentaje de uso y días restantes solo están disponibles en el additional_context."
+      ],
+      "expected_output": "Tu presupuesto de Comida ya está excedido al 120% con 18 días restantes. Entretenimiento está al 85.7%, en zona de riesgo de excederse antes de que termine el mes."
+    },
+    {
+      "id": "CE4",
+      "context_type": "budget",
+      "metrics": ["answer_relevancy", "contextual_recall"],
+      "input": "¿Cuánto margen me queda en mis presupuestos activos?",
+      "additional_context_data": {
+        "budget_health": [
+          {"name": "Comida",          "pct_used": 120.0, "days_remaining": 18},
+          {"name": "Entretenimiento", "pct_used": 85.7,  "days_remaining": 18}
+        ]
+      },
+      "description": "budget: contextual_recall — el LLM debe cubrir ambos presupuestos usando los datos del additional_context (margen negativo en Comida, positivo en Entretenimiento)",
+      "retrieval_context": [
+        "Comida no tiene margen: está excedida en $200.000 COP (120% de uso).",
+        "Entretenimiento tiene un margen restante de $50.000 COP (14.3% disponible, al 85.7% de uso).",
+        "Con 18 días restantes del mes, el ritmo actual de Entretenimiento podría llevar al exceso.",
+        "El margen disponible y el porcentaje de uso solo están en el additional_context."
+      ],
+      "expected_output": "En Comida no tienes margen: ya la excediste en $200.000 COP (120%). En Entretenimiento te quedan $50.000 COP disponibles (14.3%), aunque con 18 días el riesgo de excederse es real."
+    },
+    {
+      "id": "CE5",
+      "context_type": "categories",
+      "metrics": ["answer_relevancy", "faithfulness"],
+      "input": "¿En qué categorías gasto más y cómo se comparan con meses anteriores?",
+      "additional_context_data": {
+        "category_trends": [
+          {"name": "Comida",          "current_month": 1200000, "avg_3_months": 1050000, "delta_pct": 14.3},
+          {"name": "Otros",           "current_month": 800000,  "avg_3_months": 750000,  "delta_pct": 6.7},
+          {"name": "Servicios",       "current_month": 500000,  "avg_3_months": 490000,  "delta_pct": 2.0},
+          {"name": "Transporte",      "current_month": 400000,  "avg_3_months": 430000,  "delta_pct": -7.0},
+          {"name": "Entretenimiento", "current_month": 300000,  "avg_3_months": 280000,  "delta_pct": 7.1}
+        ]
+      },
+      "description": "categories: el LLM debe usar el ranking con comparativa histórica del additional_context para dar una respuesta completa",
+      "retrieval_context": [
+        "El ranking de categorías este mes: Comida ($1.200.000), Otros ($800.000), Servicios ($500.000), Transporte ($400.000), Entretenimiento ($300.000).",
+        "Comida supera su promedio histórico en $150.000 COP (+14.3%).",
+        "Transporte está $30.000 por debajo de su promedio histórico (-7.0%).",
+        "El ranking con comparativa histórica solo está disponible en additional_context."
+      ],
+      "expected_output": "Tu mayor gasto es Comida con $1.200.000 COP, por encima de su promedio de $1.050.000 (+14.3%). Le siguen Otros ($800.000) y Servicios ($500.000). Solo Transporte está por debajo de su promedio histórico (-7.0%)."
+    },
+    {
+      "id": "CE7",
+      "context_type": "savings",
+      "metrics": ["answer_relevancy", "faithfulness"],
+      "input": "¿Voy a poder ahorrar algo este mes?",
+      "additional_context_data": {
+        "spending_velocity": 266667,
+        "projected_expenses": 3200000,
+        "previous_savings_rate": 28.0
+      },
+      "description": "savings: el LLM debe usar la proyección y velocidad de gasto del additional_context para responder con datos concretos",
+      "retrieval_context": [
+        "La velocidad de gasto actual es de $266.667 COP por día.",
+        "La proyección de gastos al final del mes es de $3.200.000 COP.",
+        "Con ingresos de $5.000.000 COP y gastos proyectados de $3.200.000 COP, el ahorro proyectado es $1.800.000 COP (36%).",
+        "La tasa de ahorro mes anterior fue del 28%.",
+        "La proyección y velocidad de gasto solo están disponibles en additional_context."
+      ],
+      "expected_output": "Sí, la proyección indica un ahorro de $1.800.000 COP al final del mes (36%), mejor que el mes anterior (28%). Tu ritmo de $266.667 COP/día está dentro del rango esperado."
+    }
+  ]
+}

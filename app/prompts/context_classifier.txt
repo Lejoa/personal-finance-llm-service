@@ -1,0 +1,27 @@
+Clasifica el siguiente mensaje de un usuario de una app de finanzas personales.
+
+Mensaje: {message}
+
+Responde SOLO con un objeto JSON válido y nada más.
+No incluyas texto, explicaciones ni bloques de código antes ni después del JSON.
+
+Tipos posibles:
+- "transaction": El usuario está registrando un gasto o ingreso con un monto identificable.
+  Ejemplos: "gasté 50000 en almuerzo", "pagué 120000 de mercado", "recibí mi salario de 3000000", "compré gasolina por 80000"
+- "question": El usuario hace una pregunta general sobre sus finanzas respondible con el resumen base (ingresos, gastos totales, tasa de ahorro).
+  Ejemplos: "cuánto gasté este mes?", "cómo voy este mes?", "qué es una tasa de ahorro?", "estoy bien financieramente?"
+- "trends": El usuario pregunta por comparaciones con meses anteriores o evolución histórica de sus gastos.
+  Ejemplos: "cómo me fue el mes pasado?", "estoy gastando más que antes?", "he mejorado este mes?"
+- "budget": El usuario pregunta por presupuestos, límites o cuánto le queda disponible.
+  Ejemplos: "cómo va mi presupuesto?", "me estoy pasando del límite?", "cuánto tengo disponible?"
+- "categories": El usuario pregunta por categorías específicas o desglose de gastos.
+  Ejemplos: "en qué gasto más?", "cuánto llevo en comida?", "muéstrame mis gastos por categoría"
+- "savings": El usuario pregunta por ahorro, proyecciones o cómo mejorar su capacidad de ahorro.
+  Ejemplos: "puedo ahorrar más?", "cuánto me sobra este mes?", "cuánto voy a gastar al final del mes?"
+- "none": El mensaje no tiene relación con finanzas personales.
+  Ejemplos: "hola", "recomiéndame una película", "cuál es la receta de una torta?"
+
+Formato de respuesta (JSON puro, sin markdown):
+{{"context_type": "<tipo>"}}
+
+Tu respuesta JSON:

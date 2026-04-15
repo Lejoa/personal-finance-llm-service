@@ -54,6 +54,8 @@ def build_chat_chain_structured():
             "categories",
             "over_budget",
             "current_date",
+            "additional_context",
+            "context_type",
         ],
         template=prompt_text
     )

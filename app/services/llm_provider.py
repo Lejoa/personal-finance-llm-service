@@ -32,6 +32,10 @@ def get_llm_provider() -> BaseChatModel:
             base_url="https://ollama.com/v1",
             api_key=api_key,
             temperature=float(os.getenv("LLM_TEMPERATURE", "0.3")),
+            # Limita la generación a ~200 tokens: suficiente para 3 oraciones + JSON
+            # sin este límite el modelo puede generar 200+ tokens innecesarios
+            # a 21 tok/s eso representa hasta 10s de latencia extra evitable.
+            max_tokens=int(os.getenv("LLM_MAX_TOKENS", "300")),
         )
 
     elif provider == "openai":

@@ -118,6 +118,24 @@ class FinancialInsightsResponse(BaseModel):
     )
 
 
+class ClassifyContextRequest(BaseModel):
+    """Datos para clasificar el tipo de contexto financiero que necesita un mensaje."""
+
+    message: str = Field(
+        description="Mensaje del usuario a clasificar.",
+        examples=["¿Cómo va mi presupuesto este mes?"],
+    )
+
+
+class ClassifyContextResponse(BaseModel):
+    """Resultado de la clasificación de contexto."""
+
+    context_type: str = Field(
+        description="Tipo de contexto necesario: trends, budget, categories, savings, none.",
+        examples=["budget"],
+    )
+
+
 class ChatRequest(BaseModel):
     """Datos necesarios para el chat conversacional con contexto financiero."""
 
@@ -136,6 +154,22 @@ class ChatRequest(BaseModel):
     budgets: Optional[List[Budget]] = Field(
         default=[],
         description="Lista de presupuestos por categoría. Opcional.",
+    )
+    additional_context: Optional[str] = Field(
+        default="",
+        description=(
+            "Contexto financiero adicional inyectado condicionalmente según el tipo de pregunta. "
+            "Vacío para transacciones y preguntas generales."
+        ),
+        examples=["Detalle de presupuestos: Comida: 80% usado, quedan 12 días"],
+    )
+    context_type: Optional[str] = Field(
+        default="none",
+        description=(
+            "Tipo de consulta pre-clasificado: trends, budget, categories, savings, none. "
+            "Orientación para el LLM sobre la intención del mensaje."
+        ),
+        examples=["budget"],
     )
 
 

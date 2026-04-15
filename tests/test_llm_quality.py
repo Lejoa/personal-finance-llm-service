@@ -44,6 +44,7 @@ from langchain_openai import ChatOpenAI
 
 SCRIPT_DIR = Path(__file__).parent
 QUALITY_TEST_CASES_PATH = SCRIPT_DIR / "quality_test_cases.json"
+ENRICHED_TEST_CASES_PATH = SCRIPT_DIR / "context_enriched_test_cases.json"
 RESULTS_DIR = SCRIPT_DIR / "results"
 DEFAULT_BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 REQUEST_TIMEOUT = 300.0
@@ -96,6 +97,75 @@ def load_test_cases() -> dict:
         return json.load(f)
 
 
+def load_enriched_test_cases() -> dict:
+    with open(ENRICHED_TEST_CASES_PATH, encoding="utf-8") as f:
+        return json.load(f)
+
+
+# ---------------------------------------------------------------------------
+# Formateador de additional_context
+# Replica exactamente la lógica de FinancialContextService.php del backend
+# ---------------------------------------------------------------------------
+
+def _fmt(amount: float) -> str:
+    """Formatea un número con puntos como separador de miles (formato COP)."""
+    return f"{int(amount):,}".replace(",", ".")
+
+
+def format_additional_context(context_type: str, data: dict) -> str:
+    """
+    Construye el string additional_context a partir de datos estructurados,
+    replicando los métodos formatTrendsContext, formatBudgetDetailContext,
+    formatCategoriesRankingContext y formatSavingsContext del backend PHP.
+    """
+    if context_type == "trends":
+        trends = data.get("category_trends", [])
+        if not trends:
+            return ""
+        lines = ["Contexto histórico (últimos 3 meses):"]
+        for t in trends:
+            delta = f"+{t['delta_pct']}%" if t["delta_pct"] >= 0 else f"{t['delta_pct']}%"
+            lines.append(
+                f"- {t['name']}: promedio ${_fmt(t['avg_3_months'])} COP,"
+                f" este mes ${_fmt(t['current_month'])} COP ({delta})"
+            )
+        return "\n".join(lines)
+
+    if context_type == "budget":
+        health = data.get("budget_health", [])
+        if not health:
+            return ""
+        parts = [
+            f"{b['name']}: {b['pct_used']}% usado, quedan {b['days_remaining']} días"
+            for b in health
+        ]
+        return "Detalle de presupuestos: " + "; ".join(parts)
+
+    if context_type == "categories":
+        trends = data.get("category_trends", [])
+        if not trends:
+            return ""
+        lines = ["Ranking de gastos por categoría este mes:"]
+        for i, t in enumerate(trends, start=1):
+            lines.append(
+                f"- {i}. {t['name']}: ${_fmt(t['current_month'])} COP"
+                f" (promedio 3 meses: ${_fmt(t['avg_3_months'])} COP)"
+            )
+        return "\n".join(lines)
+
+    if context_type == "savings":
+        velocity  = data.get("spending_velocity", 0)
+        projected = data.get("projected_expenses", 0)
+        prev_rate = data.get("previous_savings_rate", 0)
+        return (
+            f"Proyección de ahorro: Velocidad de gasto ${_fmt(velocity)} COP/día. "
+            f"Proyección fin de mes: ${_fmt(projected)} COP en gastos. "
+            f"Tasa de ahorro mes anterior: {prev_rate}%."
+        )
+
+    return ""
+
+
 # ---------------------------------------------------------------------------
 # Llamada al servicio
 # ---------------------------------------------------------------------------
@@ -105,10 +175,43 @@ def get_llm_response(
     base_url: str,
     financial_context: dict,
     user_message: str,
+    additional_context: str = "",
+    context_type: str = "",
 ) -> tuple[str | None, float]:
-    """Llama a /llm/chat y retorna (respuesta, tiempo_ms). Retorna (None, ms) si falla."""
-    payload = {"message": user_message, **financial_context}
+    """
+    Replica el flujo de producción: classify-context → chat.
+
+    Si context_type ya está provisto (suite enriquecida), lo usa directamente
+    y omite el classify-context para ahorrar tiempo.
+    Si no, llama primero a /llm/classify-context para obtenerlo.
+    Retorna (respuesta, tiempo_ms_total). Retorna (None, ms) si falla.
+    """
     start = time.time()
+
+    # Paso 1 — classify-context (solo si context_type no viene del test case)
+    resolved_context_type = context_type
+    if not resolved_context_type:
+        try:
+            classify_resp = client.post(
+                f"{base_url}/llm/classify-context",
+                json={"message": user_message},
+                timeout=30.0,
+            )
+            if classify_resp.status_code == 422:
+                # Safety guard bloqueó — no hay respuesta de chat esperada en quality tests
+                elapsed_ms = (time.time() - start) * 1000
+                return None, round(elapsed_ms, 2)
+            resolved_context_type = classify_resp.json().get("context_type", "none")
+        except Exception:
+            resolved_context_type = "none"
+
+    # Paso 2 — chat
+    payload = {"message": user_message, **financial_context}
+    if additional_context:
+        payload["additional_context"] = additional_context
+    if resolved_context_type:
+        payload["context_type"] = resolved_context_type
+
     try:
         response = client.post(
             f"{base_url}/llm/chat", json=payload, timeout=REQUEST_TIMEOUT
@@ -119,7 +222,7 @@ def get_llm_response(
     except httpx.TimeoutException:
         elapsed_ms = (time.time() - start) * 1000
         return None, round(elapsed_ms, 2)
-    except Exception as e:
+    except Exception:
         elapsed_ms = (time.time() - start) * 1000
         return None, round(elapsed_ms, 2)
 
@@ -164,8 +267,17 @@ def run_single_test(
     preview = test["input"][:60]
     print(f"  [{test['id']}] {preview}...", end=" ", flush=True)
 
+    # Construir additional_context si el test lo declara (suite enriquecida)
+    context_type = test.get("context_type", "")
+    additional_context = ""
+    if "additional_context_data" in test:
+        additional_context = format_additional_context(
+            context_type,
+            test["additional_context_data"],
+        )
+
     actual_output, elapsed_ms = get_llm_response(
-        client, base_url, financial_context, test["input"]
+        client, base_url, financial_context, test["input"], additional_context, context_type
     )
 
     if actual_output is None:
@@ -436,6 +548,25 @@ def save_results(judge_name: str, results: list, scores: dict):
 # Entrypoint
 # ---------------------------------------------------------------------------
 
+def run_suite(
+    client: httpx.Client,
+    base_url: str,
+    financial_context: dict,
+    test_cases: list,
+    judge: OllamaCloudJudge,
+    label: str,
+) -> tuple[list, float]:
+    """Ejecuta una suite de test cases y retorna (resultados, wall_time_ms)."""
+    results = []
+    suite_start = time.time()
+    print(f"--- {label} ({len(test_cases)} tests) ---")
+    for test in test_cases:
+        result = run_single_test(client, base_url, financial_context, test, judge)
+        results.append(result)
+    print()
+    return results, (time.time() - suite_start) * 1000
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Evaluación de calidad de respuestas LLM con deepEval"
@@ -445,11 +576,18 @@ def main():
         default=DEFAULT_BASE_URL,
         help=f"URL base del servicio (default: {DEFAULT_BASE_URL})",
     )
+    parser.add_argument(
+        "--suite",
+        choices=["base", "enriched", "all"],
+        default="all",
+        help=(
+            "Suite a ejecutar: "
+            "'base' = quality_test_cases.json (sin additional_context), "
+            "'enriched' = context_enriched_test_cases.json (con additional_context), "
+            "'all' = ambas (default)"
+        ),
+    )
     args = parser.parse_args()
-
-    data = load_test_cases()
-    financial_context = data["financial_context"]
-    test_cases = data["test_cases"]
 
     print(f"\n  Verificando servicio en {args.base_url}...")
     try:
@@ -466,22 +604,32 @@ def main():
 
     print(f"\n  Juez: {judge_name}")
     print(f"  Threshold: {METRIC_THRESHOLD}")
-    print(f"  Test cases: {len(test_cases)}")
-    print()
+    print(f"  Suite: {args.suite}")
 
-    results = []
-    suite_start = time.time()
     with httpx.Client() as client:
-        print(f"--- CALIDAD ({len(test_cases)} tests) ---")
-        for test in test_cases:
-            result = run_single_test(client, args.base_url, financial_context, test, judge)
-            results.append(result)
-        print()
-    wall_time_ms = (time.time() - suite_start) * 1000
+        # --- Suite base (sin additional_context) ---
+        if args.suite in ("base", "all"):
+            data = load_test_cases()
+            results_base, wall_base = run_suite(
+                client, args.base_url,
+                data["financial_context"], data["test_cases"],
+                judge, "CALIDAD BASE",
+            )
+            scores_base = calculate_scores(results_base, wall_base)
+            print_summary(f"{judge_name} [base]", scores_base)
+            save_results(f"{judge_name}_base", results_base, scores_base)
 
-    scores = calculate_scores(results, wall_time_ms)
-    print_summary(judge_name, scores)
-    save_results(judge_name, results, scores)
+        # --- Suite enriquecida (con additional_context) ---
+        if args.suite in ("enriched", "all"):
+            enriched = load_enriched_test_cases()
+            results_enriched, wall_enriched = run_suite(
+                client, args.base_url,
+                enriched["financial_context"], enriched["test_cases"],
+                judge, "CALIDAD CON CONTEXTO ENRIQUECIDO",
+            )
+            scores_enriched = calculate_scores(results_enriched, wall_enriched)
+            print_summary(f"{judge_name} [enriched]", scores_enriched)
+            save_results(f"{judge_name}_enriched", results_enriched, scores_enriched)
 
 
 if __name__ == "__main__":

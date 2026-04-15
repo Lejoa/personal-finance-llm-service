@@ -5,12 +5,14 @@ from fastapi import FastAPI
 from app.api.financial import router as financial_router
 from app.api.health import router as health_router
 from app.services.chat_chain import get_chat_chain_structured
+from app.services.context_classifier_chain import get_context_classifier_chain
 from app.services.financial_chain import get_financial_chain
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     get_chat_chain_structured()
+    get_context_classifier_chain()
     get_financial_chain()
     yield
 

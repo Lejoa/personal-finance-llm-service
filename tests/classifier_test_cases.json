@@ -1,0 +1,113 @@
+{
+  "description": "Test cases para evaluar el endpoint /llm/classify-context. Verifica que el LLM clasifique correctamente el tipo de contexto financiero adicional que necesita cada mensaje (trends, budget, categories, savings, none).",
+  "test_cases": [
+    {
+      "id": "CL1",
+      "context_type": "trends",
+      "message": "¿Estoy gastando más que los meses anteriores?",
+      "description": "Comparación explícita con meses anteriores → trends"
+    },
+    {
+      "id": "CL2",
+      "context_type": "trends",
+      "message": "¿Cómo han cambiado mis gastos en los últimos meses?",
+      "description": "Historial de cambios temporales → trends"
+    },
+    {
+      "id": "CL3",
+      "context_type": "trends",
+      "message": "¿He mejorado o empeorado en mis finanzas comparado con meses anteriores?",
+      "description": "Comparación temporal implícita → trends"
+    },
+    {
+      "id": "CL4",
+      "context_type": "budget",
+      "message": "¿Cómo va mi presupuesto este mes?",
+      "description": "Consulta directa de estado del presupuesto → budget"
+    },
+    {
+      "id": "CL5",
+      "context_type": "budget",
+      "message": "¿Me estoy pasando del límite en alguna categoría?",
+      "description": "Consulta de exceso presupuestario → budget"
+    },
+    {
+      "id": "CL6",
+      "context_type": "budget",
+      "message": "¿Cuánto me queda disponible en mis presupuestos?",
+      "description": "Margen restante en presupuesto → budget"
+    },
+    {
+      "id": "CL7",
+      "context_type": "categories",
+      "message": "¿En qué categoría estoy gastando más?",
+      "description": "Ranking de categorías por gasto → categories"
+    },
+    {
+      "id": "CL8",
+      "context_type": "categories",
+      "message": "Muéstrame el desglose de mis gastos por categoría",
+      "description": "Solicitud de desglose por categoría → categories"
+    },
+    {
+      "id": "CL9",
+      "context_type": "categories",
+      "message": "¿Cuánto llevo gastado en comida este mes?",
+      "description": "Consulta de categoría específica → categories"
+    },
+    {
+      "id": "CL10",
+      "context_type": "savings",
+      "message": "¿Voy a poder ahorrar algo este mes?",
+      "description": "Proyección de capacidad de ahorro → savings"
+    },
+    {
+      "id": "CL11",
+      "context_type": "savings",
+      "message": "¿Cuánto me va a sobrar al final del mes si sigo gastando así?",
+      "description": "Proyección de sobrante fin de mes → savings"
+    },
+    {
+      "id": "CL12",
+      "context_type": "savings",
+      "message": "¿Cómo puedo mejorar mi ahorro?",
+      "description": "Consejo de mejora de ahorro con proyección → savings"
+    },
+    {
+      "id": "CL13",
+      "context_type": "transaction",
+      "message": "Gasté 50000 en almuerzo hoy",
+      "description": "Registro de gasto con monto identificable → transaction"
+    },
+    {
+      "id": "CL14",
+      "context_type": "transaction",
+      "message": "Recibí mi salario de 5000000",
+      "description": "Registro de ingreso con monto → transaction"
+    },
+    {
+      "id": "CL15",
+      "context_type": "question",
+      "message": "¿Cuánto gasté este mes?",
+      "description": "Pregunta general respondible con contexto base → question"
+    },
+    {
+      "id": "CL16",
+      "context_type": "question",
+      "message": "¿Cuál es mi tasa de ahorro actual?",
+      "description": "Dato disponible en el contexto base → question"
+    },
+    {
+      "id": "CL17",
+      "context_type": "none",
+      "message": "¿Cuánto es 2 más 2?",
+      "description": "Pregunta completamente fuera de finanzas personales → none"
+    },
+    {
+      "id": "CL18",
+      "context_type": "none",
+      "message": "Recomiéndame una película",
+      "description": "Solicitud de entretenimiento sin relación financiera → none"
+    }
+  ]
+}

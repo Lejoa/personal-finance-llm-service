@@ -13,7 +13,9 @@ services:
       python tests/eval_models.py
       --base-url http://llm-service:8000
     networks:
-      - default
+      llm_net:
+        aliases:
+          - llm-tests
     profiles:
       - test
 
@@ -34,7 +36,9 @@ services:
       python tests/test_llm_quality.py
       --base-url http://llm-service:8000
     networks:
-      - default
+      llm_net:
+        aliases:
+          - llm-quality-tests
     profiles:
       - test-quality
 
@@ -55,11 +59,13 @@ services:
       python tests/test_multi_turn.py
       --base-url http://llm-service:8000
     networks:
-      - default
+      llm_net:
+        aliases:
+          - llm-multi-turn-tests
     profiles:
       - test-multi-turn
 
 networks:
-  default:
+  llm_net:
     name: personal-finance-llm-service_default
     external: true

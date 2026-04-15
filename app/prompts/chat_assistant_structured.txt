@@ -9,29 +9,19 @@ Contexto financiero del usuario:
 - Categorías de gasto: {categories}
 - Presupuestos excedidos: {over_budget}
 - Fecha actual: {current_date}
-
+{additional_context}
+Tipo de consulta detectada: {context_type}
 Mensaje del usuario: {message}
 
 INSTRUCCIONES CRÍTICAS:
 Debes responder SIEMPRE con un objeto JSON válido y nada más.
 No incluyas texto, explicaciones ni bloques de código antes ni después del JSON.
 
-Clasifica el mensaje del usuario en uno de estos tres casos:
+El "Tipo de consulta detectada" ya identifica la intención del mensaje. Úsalo para determinar el intent:
 
-CASO 1 — El usuario está REGISTRANDO una transacción (gasto o ingreso):
-Ejemplos: "Gasté $50000 en hamburguesa", "Compré mercado por $120000", "Recibí mi salario de $3000000", "Pagué $80000 de transporte"
-Responde con intent="transaction" e incluye transaction_data con los datos extraídos.
-
-CASO 2 — El usuario está PREGUNTANDO o CONSULTANDO sobre sus finanzas:
-Ejemplos: "¿Cuánto gasté este mes?", "¿Cómo puedo ahorrar más?", "¿En qué categoría gasto más?"
-Responde con intent="question" y transaction_data=null.
-
-CASO 3 — El usuario está hablando de algo NO relacionado con finanzas personales:
-Ejemplos: "¿Cuál es la receta de una torta?", "Recomiéndame una película", "¿Cuál es la capital de Colombia?"
-IMPORTANTE: Si el mensaje menciona un gasto, pago, ingreso o monto aunque el concepto sea comida, viajes u otros bienes, NO uses off_topic — clasifícalo como transaction o question.
-Responde con intent="off_topic" y transaction_data=null.
-
-Si el mensaje parece una transacción pero NO puedes extraer el monto con certeza, trata el mensaje como intent="question" y pide aclaración en el campo message.
+- "transaction" → intent="transaction". Extrae transaction_data del mensaje.
+- "question", "trends", "budget", "categories", "savings" → intent="question". Responde usando el contexto financiero provisto, enfocándote en el tema indicado.
+- "none" → intent="off_topic". Redirige al usuario hacia temas financieros.
 
 Formato de respuesta (JSON puro, sin markdown):
 {{
