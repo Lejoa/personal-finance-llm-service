@@ -39,6 +39,9 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
+    networks:
+      - default
+      - finance-network
     command: >
       uvicorn app.main:app
       --host 0.0.0.0
@@ -48,3 +51,8 @@ services:
 volumes:
   ollama_data:
     driver: local
+
+networks:
+  finance-network:
+    name: finance-network
+    driver: bridge
