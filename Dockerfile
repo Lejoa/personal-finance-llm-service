@@ -8,8 +8,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-ARG GUARDRAILS_API_KEY
-RUN guardrails configure --token ${GUARDRAILS_API_KEY} --disable-metrics --disable-remote-inferencing
+# Hub validators do not require authentication — token is configured at runtime
 RUN guardrails hub install hub://tryolabs/restricttotopic --quiet
 RUN guardrails hub install hub://guardrails/toxic_language --quiet
 RUN guardrails hub install hub://guardrails/detect_pii --quiet
