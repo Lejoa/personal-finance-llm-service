@@ -1,26 +1,4 @@
 services:
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    ports:
-      - "11435:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    deploy:
-      resources:
-        limits:
-          cpus: '4'
-          memory: 8G
-    environment:
-      - OLLAMA_NUM_PARALLEL=1
-    healthcheck:
-      test: ["CMD-SHELL", "ollama list || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    restart: unless-stopped
-
   llm-service:
     build:
       context: .
@@ -34,11 +12,6 @@ services:
       - ./app:/app/app
     env_file:
       - .env
-    environment:
-      - LLM_MODEL=${LLM_MODEL:-gpt-oss:120b-cloud}
-    depends_on:
-      ollama:
-        condition: service_healthy
     networks:
       - default
       - finance-network
@@ -47,10 +20,6 @@ services:
       --host 0.0.0.0
       --port 8000
       --reload
-
-volumes:
-  ollama_data:
-    driver: local
 
 networks:
   finance-network:
