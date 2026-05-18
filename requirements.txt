@@ -4,8 +4,9 @@ uvicorn[standard]==0.29.0
 langchain==0.3.25
 langchain-core==0.3.58
 langchain-openai==0.3.16
-# langchain-ollama==0.3.3  # solo necesario si LLM_PROVIDER=ollama (local)
 
 httpx==0.27.0
 
-guardrails-ai
+# guardrails-ai was quarantined on PyPI on 2026-05-11 due to a supply chain attack.
+# Version 0.6.8 is installed directly from the official GitHub tag to avoid PyPI.
+git+https://github.com/guardrails-ai/guardrails.git@v0.6.8
