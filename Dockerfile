@@ -8,6 +8,7 @@ WORKDIR /app
 
 COPY requirements.txt .
 # git is required to install guardrails-ai directly from GitHub (PyPI quarantined 2026-05-11)
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir -r requirements.txt
