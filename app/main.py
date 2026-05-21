@@ -1,5 +1,3 @@
-import os
-import subprocess
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -13,17 +11,20 @@ from app.services.financial_chain import get_financial_chain
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    guardrails_key = os.getenv("GUARDRAILS_API_KEY")
-    if guardrails_key:
-        subprocess.run(
-            [
-                "guardrails", "configure",
-                "--token", guardrails_key,
-                "--disable-metrics",
-                "--disable-remote-inferencing",
-            ],
-            check=True,
-        )
+    # TEMPORARILY DISABLED — guardrails configure is a no-op while Hub validators
+    # are unavailable. Re-enable together with guardrails_service.py validators.
+    #
+    # guardrails_key = os.getenv("GUARDRAILS_API_KEY")
+    # if guardrails_key:
+    #     subprocess.run(
+    #         [
+    #             "guardrails", "configure",
+    #             "--token", guardrails_key,
+    #             "--disable-metrics",
+    #             "--disable-remote-inferencing",
+    #         ],
+    #         check=True,
+    #     )
     get_chat_chain_structured()
     get_context_classifier_chain()
     get_financial_chain()

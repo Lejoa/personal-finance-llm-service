@@ -15,8 +15,15 @@ run_in_executor para correr la validación síncrona en el threadpool de asyncio
 evitando el warning "Could not obtain an event loop" y sin bloquear el event loop.
 """
 import asyncio
-from guardrails import Guard
-from guardrails.hub import RestrictToTopic, ToxicLanguage, DetectPII
+
+# GUARDRAILS HUB VALIDATORS — TEMPORARILY DISABLED (2026-05-18)
+# RestrictToTopic, ToxicLanguage and DetectPII cannot be installed because
+# the Guardrails Hub registry removed them from PyPI (supply chain incident 2026-05-11).
+# All validation methods below return without error until the Hub is restored.
+# To re-enable: uncomment these imports and remove the pass statements in each method.
+#
+# from guardrails import Guard
+# from guardrails.hub import RestrictToTopic, ToxicLanguage, DetectPII
 
 
 FINANCIAL_TOPICS = [
@@ -77,106 +84,112 @@ class GuardrailsValidationError(Exception):
 
 class GuardrailsService:
     def __init__(self):
-        # Guard para INPUT del usuario
-        self.input_guard = Guard().use_many(
-            RestrictToTopic(
-                valid_topics=FINANCIAL_TOPICS,
-                invalid_topics=INVALID_TOPICS,
-                disable_classifier=False,
-                disable_llm=True,
-                on_fail="exception",
-            ),
-            ToxicLanguage(
-                threshold=0.5,
-                validation_method="sentence",
-                on_fail="exception",
-            ),
-            DetectPII(
-                pii_entities=PII_ENTITIES,
-                on_fail="exception",
-            ),
-        )
-
-        # Guard para el chat — sin RestrictToTopic (el LLM clasifica la intención)
-        self.safety_guard = Guard().use_many(
-            ToxicLanguage(
-                threshold=0.5,
-                validation_method="sentence",
-                on_fail="exception",
-            ),
-            DetectPII(
-                pii_entities=PII_ENTITIES,
-                on_fail="exception",
-            ),
-        )
-
-        # Guard para OUTPUT del LLM
-        self.output_guard = Guard().use(
-            ToxicLanguage(
-                threshold=0.5,
-                validation_method="sentence",
-                on_fail="exception",
-            ),
-        )
+        # TEMPORARILY DISABLED — re-enable when Hub validators are available again.
+        # Uncomment the blocks below and remove the pass statements in each method.
+        #
+        # self.input_guard = Guard().use_many(
+        #     RestrictToTopic(
+        #         valid_topics=FINANCIAL_TOPICS,
+        #         invalid_topics=INVALID_TOPICS,
+        #         disable_classifier=False,
+        #         disable_llm=True,
+        #         on_fail="exception",
+        #     ),
+        #     ToxicLanguage(
+        #         threshold=0.5,
+        #         validation_method="sentence",
+        #         on_fail="exception",
+        #     ),
+        #     DetectPII(
+        #         pii_entities=PII_ENTITIES,
+        #         on_fail="exception",
+        #     ),
+        # )
+        # self.safety_guard = Guard().use_many(
+        #     ToxicLanguage(
+        #         threshold=0.5,
+        #         validation_method="sentence",
+        #         on_fail="exception",
+        #     ),
+        #     DetectPII(
+        #         pii_entities=PII_ENTITIES,
+        #         on_fail="exception",
+        #     ),
+        # )
+        # self.output_guard = Guard().use(
+        #     ToxicLanguage(
+        #         threshold=0.5,
+        #         validation_method="sentence",
+        #         on_fail="exception",
+        #     ),
+        # )
+        pass
 
     def validate_input(self, user_message: str) -> None:
         """
         Valida el mensaje del usuario antes de enviarlo al LLM.
         Lanza GuardrailsValidationError si falla alguna validación.
         """
-        try:
-            self.input_guard.validate(user_message)
-        except Exception as e:
-            error_msg = str(e).lower()
-            if "restricttotopic" in error_msg or "topic" in error_msg:
-                raise GuardrailsValidationError(
-                    "Lo siento, solo puedo ayudarte con preguntas sobre finanzas personales. "
-                    "¿Tienes alguna consulta sobre tu presupuesto, ahorro o inversiones?",
-                    error_type="off_topic",
-                )
-            if "toxic" in error_msg:
-                raise GuardrailsValidationError(
-                    "Tu mensaje contiene contenido inapropiado. "
-                    "Por favor, reformula tu pregunta de forma respetuosa.",
-                    error_type="toxic",
-                )
-            if "pii" in error_msg:
-                raise GuardrailsValidationError(
-                    "Tu mensaje parece contener información personal sensible "
-                    "(como número de cédula o cuenta). "
-                    "Por favor, no incluyas datos personales en tus consultas.",
-                    error_type="pii",
-                )
-            raise GuardrailsValidationError(
-                "No se pudo procesar tu mensaje. Por favor intenta de nuevo.",
-                error_type="unknown",
-            )
+        # TEMPORARILY DISABLED — validators unavailable (Hub registry down 2026-05-11).
+        # Re-enable by uncommenting the block below and removing the pass.
+        #
+        # try:
+        #     self.input_guard.validate(user_message)
+        # except Exception as e:
+        #     error_msg = str(e).lower()
+        #     if "restricttotopic" in error_msg or "topic" in error_msg:
+        #         raise GuardrailsValidationError(
+        #             "Lo siento, solo puedo ayudarte con preguntas sobre finanzas personales. "
+        #             "¿Tienes alguna consulta sobre tu presupuesto, ahorro o inversiones?",
+        #             error_type="off_topic",
+        #         )
+        #     if "toxic" in error_msg:
+        #         raise GuardrailsValidationError(
+        #             "Tu mensaje contiene contenido inapropiado. "
+        #             "Por favor, reformula tu pregunta de forma respetuosa.",
+        #             error_type="toxic",
+        #         )
+        #     if "pii" in error_msg:
+        #         raise GuardrailsValidationError(
+        #             "Tu mensaje parece contener información personal sensible "
+        #             "(como número de cédula o cuenta). "
+        #             "Por favor, no incluyas datos personales en tus consultas.",
+        #             error_type="pii",
+        #         )
+        #     raise GuardrailsValidationError(
+        #         "No se pudo procesar tu mensaje. Por favor intenta de nuevo.",
+        #         error_type="unknown",
+        #     )
+        pass
 
     def validate_safety(self, user_message: str) -> None:
         """
         Valida ToxicLanguage y DetectPII únicamente (versión síncrona).
         """
-        try:
-            self.safety_guard.validate(user_message)
-        except Exception as e:
-            error_msg = str(e).lower()
-            if "toxic" in error_msg:
-                raise GuardrailsValidationError(
-                    "Tu mensaje contiene contenido inapropiado. "
-                    "Por favor, reformula tu pregunta de forma respetuosa.",
-                    error_type="toxic",
-                )
-            if "pii" in error_msg:
-                raise GuardrailsValidationError(
-                    "Tu mensaje parece contener información personal sensible "
-                    "(como número de cédula o cuenta). "
-                    "Por favor, no incluyas datos personales en tus consultas.",
-                    error_type="pii",
-                )
-            raise GuardrailsValidationError(
-                "No se pudo procesar tu mensaje. Por favor intenta de nuevo.",
-                error_type="unknown",
-            )
+        # TEMPORARILY DISABLED — re-enable by uncommenting the block below.
+        #
+        # try:
+        #     self.safety_guard.validate(user_message)
+        # except Exception as e:
+        #     error_msg = str(e).lower()
+        #     if "toxic" in error_msg:
+        #         raise GuardrailsValidationError(
+        #             "Tu mensaje contiene contenido inapropiado. "
+        #             "Por favor, reformula tu pregunta de forma respetuosa.",
+        #             error_type="toxic",
+        #         )
+        #     if "pii" in error_msg:
+        #         raise GuardrailsValidationError(
+        #             "Tu mensaje parece contener información personal sensible "
+        #             "(como número de cédula o cuenta). "
+        #             "Por favor, no incluyas datos personales en tus consultas.",
+        #             error_type="pii",
+        #         )
+        #     raise GuardrailsValidationError(
+        #         "No se pudo procesar tu mensaje. Por favor intenta de nuevo.",
+        #         error_type="unknown",
+        #     )
+        pass
 
     async def async_validate_safety(self, user_message: str) -> None:
         """
@@ -195,14 +208,17 @@ class GuardrailsService:
         """
         Valida la respuesta del LLM antes de retornarla al usuario (versión síncrona).
         """
-        try:
-            result = self.output_guard.validate(llm_response)
-            return result.validated_output or llm_response
-        except Exception:
-            raise GuardrailsValidationError(
-                "La respuesta generada no pudo ser validada. Por favor intenta de nuevo.",
-                error_type="output_invalid",
-            )
+        # TEMPORARILY DISABLED — re-enable by uncommenting the block below.
+        #
+        # try:
+        #     result = self.output_guard.validate(llm_response)
+        #     return result.validated_output or llm_response
+        # except Exception:
+        #     raise GuardrailsValidationError(
+        #         "La respuesta generada no pudo ser validada. Por favor intenta de nuevo.",
+        #         error_type="output_invalid",
+        #     )
+        return llm_response
 
     async def async_validate_output(self, llm_response: str) -> str:
         """
