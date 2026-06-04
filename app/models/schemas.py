@@ -43,6 +43,16 @@ class Summary(BaseModel):
         description="Tasa de ahorro del mes anterior como porcentaje (0–100). Null si no hay datos.",
         examples=[28.0],
     )
+    previous_income: Optional[float] = Field(
+        default=None,
+        description="Ingresos totales del mes anterior en la moneda del usuario. Null si no hay datos.",
+        examples=[4800000.0],
+    )
+    previous_expenses: Optional[float] = Field(
+        default=None,
+        description="Gastos totales del mes anterior en la moneda del usuario. Null si no hay datos.",
+        examples=[3100000.0],
+    )
 
 
 class Category(BaseModel):
@@ -125,14 +135,64 @@ class ClassifyContextRequest(BaseModel):
         description="Mensaje del usuario a clasificar.",
         examples=["¿Cómo va mi presupuesto este mes?"],
     )
+    available_categories: Optional[List[str]] = Field(
+        default=[],
+        description=(
+            "Lista de nombres de categorías disponibles en la app. "
+            "Permite al clasificador normalizar el nombre de categoría en period_hint.category "
+            "usando el nombre exacto de la BD en lugar del sinónimo del usuario."
+        ),
+        examples=[["Comida", "Transporte", "Entretenimiento"]],
+    )
+
+
+class PeriodHint(BaseModel):
+    """Período temporal extraído del mensaje del usuario por el clasificador."""
+
+    from_month: Optional[str] = Field(
+        default=None,
+        description="Primer mes del rango en formato YYYY-MM.",
+        examples=["2026-04"],
+    )
+    to_month: Optional[str] = Field(
+        default=None,
+        description="Último mes del rango en formato YYYY-MM.",
+        examples=["2026-05"],
+    )
+    category: Optional[str] = Field(
+        default=None,
+        description="Nombre de la categoría mencionada por el usuario, si aplica.",
+        examples=["Comida", "Transporte"],
+    )
 
 
 class ClassifyContextResponse(BaseModel):
     """Resultado de la clasificación de contexto."""
 
     context_type: str = Field(
-        description="Tipo de contexto necesario: trends, budget, categories, savings, none.",
-        examples=["budget"],
+        description="Tipo de contexto: transaction|question|trends|historical|budget|categories|savings|none.",
+        examples=["historical"],
+    )
+    period_hint: Optional[PeriodHint] = Field(
+        default=None,
+        description=(
+            "Período temporal extraído del mensaje. "
+            "Presente solo cuando context_type es 'historical' o 'trends'. "
+            "Null para todos los demás tipos."
+        ),
+    )
+
+
+class ConversationTurn(BaseModel):
+    """Un turno de la conversación (mensaje de usuario o respuesta del asistente)."""
+
+    role: str = Field(
+        description="Rol del emisor: 'user' o 'assistant'.",
+        examples=["user", "assistant"],
+    )
+    content: str = Field(
+        description="Contenido del mensaje.",
+        examples=["¿Cuánto gasté en Comida?"],
     )
 
 
@@ -170,6 +230,27 @@ class ChatRequest(BaseModel):
             "Orientación para el LLM sobre la intención del mensaje."
         ),
         examples=["budget"],
+    )
+    conversation_history: Optional[List[ConversationTurn]] = Field(
+        default=[],
+        description=(
+            "Últimos N turnos de la conversación (mensajes anteriores). "
+            "Permite al LLM mantener coherencia en conversaciones multi-turno. "
+            "Cada elemento contiene 'role' (user|assistant) y 'content'."
+        ),
+        examples=[[
+            {"role": "user", "content": "¿Cuánto gasté en Comida este mes?"},
+            {"role": "assistant", "content": "Llevas 450.000 COP en Comida este mes."},
+        ]],
+    )
+    available_categories: Optional[List[str]] = Field(
+        default=[],
+        description=(
+            "Lista completa de nombres de categorías disponibles en la app. "
+            "Permite al LLM mapear sinónimos del usuario (ej: 'alimentación' → 'Comida') "
+            "a nombres reales de categoría al registrar transacciones o consultar historial."
+        ),
+        examples=[["Comida", "Transporte", "Entretenimiento", "Salud", "Vivienda"]],
     )
 
 

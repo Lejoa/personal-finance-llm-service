@@ -3,6 +3,7 @@ from datetime import date as date_type
 
 from fastapi import APIRouter, HTTPException
 from langchain_core.exceptions import OutputParserException
+from langchain_core.messages import HumanMessage, AIMessage
 from app.models.schemas import (
     FinancialInsightsRequest,
     FinancialInsightsResponse,
@@ -13,6 +14,7 @@ from app.models.schemas import (
     GuardrailsErrorResponse,
     ClassifyContextRequest,
     ClassifyContextResponse,
+    PeriodHint,
 )
 from app.services.financial_chain import get_financial_chain
 from app.services.chat_chain import get_chat_chain_structured
@@ -191,14 +193,30 @@ async def classify_context(payload: ClassifyContextRequest):
     # 2. Clasificar contexto
     chain = get_context_classifier_chain()
     try:
-        parsed = chain.invoke({"message": payload.message})
+        parsed = chain.invoke({
+            "message": payload.message,
+            "current_date": date_type.today().isoformat(),
+            "available_categories": ", ".join(payload.available_categories or []),
+        })
         context_type = parsed.get("context_type", "none")
         if context_type not in VALID_CONTEXT_TYPES:
             context_type = "none"
+
+        # Construir period_hint solo si el LLM lo incluyó con datos mínimos
+        period_hint = None
+        raw_hint = parsed.get("period_hint")
+        if isinstance(raw_hint, dict) and raw_hint.get("from_month") and raw_hint.get("to_month"):
+            period_hint = PeriodHint(
+                from_month=str(raw_hint["from_month"]),
+                to_month=str(raw_hint["to_month"]),
+                category=raw_hint.get("category"),
+            )
+
     except Exception:
         context_type = "none"
+        period_hint = None
 
-    return ClassifyContextResponse(context_type=context_type)
+    return ClassifyContextResponse(context_type=context_type, period_hint=period_hint)
 
 
 @router.post(
@@ -247,6 +265,19 @@ async def chat(payload: ChatRequest):
     ]
     over_budget = ", ".join(over_budget_list) if over_budget_list else "Ninguno"
 
+    history_messages = []
+    for turn in (payload.conversation_history or []):
+        if turn.role == "user":
+            history_messages.append(HumanMessage(content=turn.content))
+        elif turn.role == "assistant":
+            history_messages.append(AIMessage(content=turn.content))
+
+    previous_income = payload.financial_summary.previous_income
+    previous_expenses = payload.financial_summary.previous_expenses
+    previous_savings_rate = payload.financial_summary.previous_savings_rate
+
+    available_categories_str = ", ".join(payload.available_categories or [])
+
     try:
         parsed = chain.invoke({
             "message": payload.message,
@@ -254,12 +285,17 @@ async def chat(payload: ChatRequest):
             "total_income": payload.financial_summary.total_income,
             "total_expenses": payload.financial_summary.total_expenses,
             "savings_rate": payload.financial_summary.savings_rate,
+            "previous_income": previous_income if previous_income is not None else "sin datos",
+            "previous_expenses": previous_expenses if previous_expenses is not None else "sin datos",
+            "previous_savings_rate": previous_savings_rate if previous_savings_rate is not None else "sin datos",
             "currency": payload.user_context.currency,
             "categories": categories_str,
             "over_budget": over_budget,
             "current_date": date_type.today().isoformat(),
             "additional_context": payload.additional_context or "",
             "context_type": payload.context_type or "none",
+            "history": history_messages,
+            "available_categories": available_categories_str,
         })
     except OutputParserException:
         parsed = {
