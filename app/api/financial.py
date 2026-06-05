@@ -18,9 +18,12 @@ from app.models.schemas import (
 )
 from app.services.financial_chain import get_financial_chain
 from app.services.chat_chain import get_chat_chain_structured
+from app.services.rag_chain import get_rag_education_chain
 from app.services.context_classifier_chain import get_context_classifier_chain, VALID_CONTEXT_TYPES
 from app.services.guardrails_service import get_guardrails_service, GuardrailsValidationError
 from app.services.llm_provider import get_llm_provider
+from app.api.rag import rag_search
+from app.models.schemas import RagSearchRequest
 
 logger = logging.getLogger(__name__)
 
@@ -251,6 +254,11 @@ async def classify_context(payload: ClassifyContextRequest):
 async def chat(payload: ChatRequest):
     guardrails = get_guardrails_service()
 
+    # Rama RAG: cuando context_type es "education" se ejecutan los pasos A→B→C
+    # en lugar del chain de chat financiero estándar.
+    if payload.context_type == "education":
+        return await _handle_education(payload, guardrails)
+
     # Invocar el chain — JsonOutputParser retorna dict directamente
     chain = get_chat_chain_structured()
 
@@ -355,4 +363,103 @@ async def chat(payload: ChatRequest):
             "type": "transaction" if transaction_action else "conversational",
         },
         transaction_action=transaction_action,
+    )
+
+
+async def _handle_education(payload: ChatRequest, guardrails) -> ChatResponse:
+    """
+    Pipeline RAG para mensajes de tipo 'education'.
+
+    A — Genera el embedding de la pregunta del usuario via /llm/rag/search,
+        que internamente llama al backend PHP para ejecutar la búsqueda pgvector.
+    B — Construye el rag_context con los chunks recuperados y sus fuentes.
+    C — Invoca el chain RAG con rag_education.txt para generar la respuesta.
+
+    Si no hay chunks indexados (corpus vacío o error de red), cae al chain de
+    chat estándar con context_type "education" para que el LLM responda con
+    conocimiento general (comportamiento de Fase 1).
+    """
+    rag_context = ""
+
+    try:
+        search_result = rag_search(RagSearchRequest(query=payload.message, limit=3))
+        if search_result.results:
+            parts = []
+            for chunk in search_result.results:
+                source = chunk.source_title or "Fuente desconocida"
+                parts.append(f"[Fuente: {source}]\n{chunk.content}")
+            rag_context = "\n\n".join(parts)
+    except Exception:
+        logger.warning("RAG search failed for education query — falling back to general knowledge")
+
+    if rag_context:
+        # C — responder con el material recuperado
+        try:
+            rag_chain = get_rag_education_chain()
+            message_content = rag_chain.invoke({
+                "question": payload.message,
+                "rag_context": rag_context,
+            })
+            if hasattr(message_content, "content"):
+                message_content = message_content.content
+
+            try:
+                message_content = await guardrails.async_validate_output(str(message_content))
+            except GuardrailsValidationError as e:
+                raise HTTPException(status_code=500, detail={
+                    "error": e.error_type,
+                    "message": e.message,
+                })
+
+            return ChatResponse(
+                message=str(message_content),
+                metadata={"confidence": 0.90, "type": "education_rag"},
+                transaction_action=None,
+            )
+        except HTTPException:
+            raise
+        except Exception:
+            logger.exception("RAG chain failed — falling back to general knowledge")
+
+    # Fallback: sin chunks disponibles, usar el chain de chat con conocimiento general
+    chain = get_chat_chain_structured()
+    try:
+        parsed = chain.invoke({
+            "message": payload.message,
+            "financial_level": payload.user_context.financial_level,
+            "total_income": payload.financial_summary.total_income,
+            "total_expenses": payload.financial_summary.total_expenses,
+            "savings_rate": payload.financial_summary.savings_rate,
+            "previous_income": payload.financial_summary.previous_income or "sin datos",
+            "previous_expenses": payload.financial_summary.previous_expenses or "sin datos",
+            "previous_savings_rate": payload.financial_summary.previous_savings_rate or "sin datos",
+            "currency": payload.user_context.currency,
+            "categories": "",
+            "over_budget": "Ninguno",
+            "current_date": date_type.today().isoformat(),
+            "additional_context": "",
+            "context_type": "education",
+            "history": [],
+            "available_categories": "",
+        })
+    except Exception as exc:
+        logger.exception("Education fallback chain failed")
+        raise HTTPException(status_code=500, detail={
+            "error": type(exc).__name__,
+            "message": str(exc),
+        })
+
+    message_content = parsed.get("message", "")
+    try:
+        message_content = await guardrails.async_validate_output(message_content)
+    except GuardrailsValidationError as e:
+        raise HTTPException(status_code=500, detail={
+            "error": e.error_type,
+            "message": e.message,
+        })
+
+    return ChatResponse(
+        message=message_content,
+        metadata={"confidence": 0.75, "type": "education_general"},
+        transaction_action=None,
     )

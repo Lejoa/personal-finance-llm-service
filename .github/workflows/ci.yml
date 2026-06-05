@@ -52,10 +52,10 @@ jobs:
         name: Start container
         run: |
           docker run -d --name llm-ci -p 8000:8000 \
-            -e LLM_PROVIDER=openai \
-            -e LLM_MODEL=gpt-4o-mini \
+            -e LLM_PROVIDER=ollama-cloud \
+            -e LLM_MODEL=gpt-oss:120b \
             -e LLM_TEMPERATURE=0.3 \
-            -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
+            -e OLLAMA_API_KEY=${{ secrets.OLLAMA_API_KEY }} \
             -e GUARDRAILS_API_KEY=${{ secrets.GUARDRAILS_API_KEY }} \
             llm-service:ci
       -

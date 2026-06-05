@@ -297,6 +297,56 @@ class ChatResponse(BaseModel):
     )
 
 
+class RagSearchRequest(BaseModel):
+    """Parámetros para la búsqueda semántica RAG."""
+
+    query: str = Field(
+        description="Texto de la pregunta del usuario a buscar semánticamente.",
+        examples=["Quiero aprender más sobre ahorro e inversión con propósito"],
+    )
+    limit: Optional[int] = Field(
+        default=3,
+        description="Número máximo de chunks a recuperar (1-10).",
+        examples=[3],
+    )
+
+
+class RagChunk(BaseModel):
+    """Un fragmento de texto recuperado en la búsqueda semántica."""
+
+    content: str = Field(description="Texto del fragmento recuperado.")
+    source_title: Optional[str] = Field(default=None, description="Título de la fuente.")
+    source_author: Optional[str] = Field(default=None, description="Autor de la fuente.")
+    similarity: float = Field(description="Similitud coseno con la consulta (0-1).")
+
+
+class RagSearchResponse(BaseModel):
+    """Resultado de la búsqueda semántica RAG."""
+
+    results: List[RagChunk] = Field(description="Fragmentos más similares a la consulta.")
+
+
+class EmbedRequest(BaseModel):
+    """Texto a convertir en vector de embedding."""
+
+    text: str = Field(
+        description="Texto a embeber.",
+        examples=["Ahorra e invierte con propósito"],
+    )
+
+
+class EmbedResponse(BaseModel):
+    """Vector de embedding generado por OpenAI text-embedding-3-small."""
+
+    embedding: List[float] = Field(
+        description="Vector de 1536 dimensiones.",
+    )
+    model: str = Field(
+        description="Modelo utilizado para generar el embedding.",
+        examples=["text-embedding-3-small"],
+    )
+
+
 class GuardrailsErrorResponse(BaseModel):
     """Respuesta de error cuando Guardrails rechaza el input o el output."""
 

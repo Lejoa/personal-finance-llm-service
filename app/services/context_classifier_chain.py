@@ -8,7 +8,7 @@ from app.services.llm_provider import get_llm_provider
 
 VALID_CONTEXT_TYPES = {
     "transaction", "question", "trends", "historical",
-    "budget", "categories", "savings", "none",
+    "budget", "categories", "savings", "education", "none",
 }
 
 

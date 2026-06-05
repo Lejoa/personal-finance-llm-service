@@ -2,11 +2,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.embedding import router as embedding_router
 from app.api.financial import router as financial_router
 from app.api.health import router as health_router
+from app.api.rag import router as rag_router
 from app.services.chat_chain import get_chat_chain_structured
 from app.services.context_classifier_chain import get_context_classifier_chain
 from app.services.financial_chain import get_financial_chain
+from app.services.rag_chain import get_rag_education_chain
 
 
 @asynccontextmanager
@@ -28,6 +31,7 @@ async def lifespan(app: FastAPI):
     get_chat_chain_structured()
     get_context_classifier_chain()
     get_financial_chain()
+    get_rag_education_chain()
     yield
 
 
@@ -53,3 +57,5 @@ app = FastAPI(
 
 app.include_router(health_router)
 app.include_router(financial_router)
+app.include_router(embedding_router)
+app.include_router(rag_router)
