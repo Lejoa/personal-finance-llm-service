@@ -1,4 +1,6 @@
 Clasifica el siguiente mensaje de un usuario de una app de finanzas personales.
+Fecha actual: {current_date}
+Categorías disponibles en la app: {available_categories}
 
 Mensaje: {message}
 
@@ -8,20 +10,62 @@ No incluyas texto, explicaciones ni bloques de código antes ni después del JSO
 Tipos posibles:
 - "transaction": El usuario está registrando un gasto o ingreso con un monto identificable.
   Ejemplos: "gasté 50000 en almuerzo", "pagué 120000 de mercado", "recibí mi salario de 3000000", "compré gasolina por 80000"
-- "question": El usuario hace una pregunta general sobre sus finanzas respondible con el resumen base (ingresos, gastos totales, tasa de ahorro).
+
+- "question": El usuario hace una pregunta sobre sus finanzas del mes actual respondible con el resumen base (ingresos, gastos totales, tasa de ahorro).
   Ejemplos: "cuánto gasté este mes?", "cómo voy este mes?", "qué es una tasa de ahorro?", "estoy bien financieramente?"
-- "trends": El usuario pregunta por comparaciones con meses anteriores o evolución histórica de sus gastos.
-  Ejemplos: "cómo me fue el mes pasado?", "estoy gastando más que antes?", "he mejorado este mes?"
+
+- "trends": El usuario pregunta por una comparación directa entre el mes actual y el mes anterior inmediato.
+  Ejemplos: "estoy gastando más que antes?", "he mejorado este mes?", "cómo me fue vs el mes pasado?"
+
+- "historical": El usuario pregunta por datos de un período concreto del pasado (no solo el mes anterior).
+  Puede mencionar un mes específico, un trimestre, un rango, "este año", "el año pasado", o "los últimos N meses".
+  Ejemplos: "cuánto gasté en Comida en abril?", "cuánto gané en los últimos 3 meses?",
+            "compara mis gastos de enero y febrero", "en qué mes del año pasado gasté más en transporte?",
+            "cuánto he ahorrado en total este año?", "cómo fueron mis finanzas en el primer trimestre?"
+
 - "budget": El usuario pregunta por presupuestos, límites o cuánto le queda disponible.
   Ejemplos: "cómo va mi presupuesto?", "me estoy pasando del límite?", "cuánto tengo disponible?"
-- "categories": El usuario pregunta por categorías específicas o desglose de gastos.
-  Ejemplos: "en qué gasto más?", "cuánto llevo en comida?", "muéstrame mis gastos por categoría"
-- "savings": El usuario pregunta por ahorro, proyecciones o cómo mejorar su capacidad de ahorro.
+
+- "categories": El usuario pregunta por categorías específicas o desglose de gastos del mes actual.
+  Ejemplos: "en qué gasto más?", "cuánto llevo en comida este mes?", "muéstrame mis gastos por categoría"
+
+- "savings": El usuario pregunta por ahorro, proyecciones o cómo mejorar su capacidad de ahorro del mes actual.
   Ejemplos: "puedo ahorrar más?", "cuánto me sobra este mes?", "cuánto voy a gastar al final del mes?"
+
+- "education": El usuario quiere aprender sobre un concepto financiero o profundizar en un tip.
+  Incluye mensajes generados por el botón "Aprende más" del módulo de tips, que siempre tienen
+  la forma "Quiero aprender más sobre este tema: [título del tip]. [descripción]".
+  Ejemplos: "Quiero aprender más sobre: 'Ahorra e invierte con propósito'...",
+            "explícame más sobre diversificación de ingresos",
+            "¿qué es un fondo de emergencia y cómo lo armo?",
+            "quiero entender mejor cómo funciona el interés compuesto"
+
 - "none": El mensaje no tiene relación con finanzas personales.
   Ejemplos: "hola", "recomiéndame una película", "cuál es la receta de una torta?"
 
+Reglas para period_hint (solo para "historical" y "trends"):
+- Usa SIEMPRE el formato YYYY-MM, nunca texto libre como "abril" ni "04/2026".
+- Convierte referencias relativas usando {current_date} como punto de referencia exacto.
+- Ejemplos de conversión (asumiendo que hoy es {current_date}):
+  "en abril"              → from_month: año_de_abril-04, to_month: año_de_abril-04
+  "los últimos 3 meses"   → from_month: hace_3_meses, to_month: mes_anterior
+  "este año"              → from_month: año_actual-01, to_month: mes_actual
+  "el año pasado"         → from_month: año_anterior-01, to_month: año_anterior-12
+  "en enero"              → from_month: año_más_reciente-01, to_month: año_más_reciente-01
+  "el primer trimestre"   → from_month: año_actual-01, to_month: año_actual-03
+  "hace 2 meses"          → from_month: hace_2_meses, to_month: hace_2_meses
+  "entre marzo y mayo"    → from_month: año-03, to_month: año-05
+- Si el usuario menciona una categoría, normaliza su nombre usando la lista "Categorías disponibles en la app". Si el usuario dice un sinónimo (ej: "alimentación" → "Comida", "movilidad" → "Transporte"), usa el nombre exacto de la lista en el campo category.
+- Si no puedes determinar el período con certeza → period_hint: null
+
 Formato de respuesta (JSON puro, sin markdown):
-{{"context_type": "<tipo>"}}
+Para context_type "historical" o "trends" con período identificable:
+{{"context_type": "<tipo>", "period_hint": {{"from_month": "YYYY-MM", "to_month": "YYYY-MM", "category": null}}}}
+
+Para context_type "historical" o "trends" sin período identificable:
+{{"context_type": "<tipo>", "period_hint": null}}
+
+Para todos los demás tipos:
+{{"context_type": "<tipo>", "period_hint": null}}
 
 Tu respuesta JSON:

@@ -380,14 +380,19 @@ async def _handle_education(payload: ChatRequest, guardrails) -> ChatResponse:
     conocimiento general (comportamiento de Fase 1).
     """
     rag_context = ""
+    rag_sources: list[str] = []
 
     try:
         search_result = rag_search(RagSearchRequest(query=payload.message, limit=3))
         if search_result.results:
             parts = []
+            seen: set[str] = set()
             for chunk in search_result.results:
-                source = chunk.source_title or "Fuente desconocida"
-                parts.append(f"[Fuente: {source}]\n{chunk.content}")
+                parts.append(chunk.content)
+                label = chunk.source_title or chunk.tip_title
+                if label and label not in seen:
+                    seen.add(label)
+                    rag_sources.append(label)
             rag_context = "\n\n".join(parts)
     except Exception:
         logger.warning("RAG search failed for education query — falling back to general knowledge")
@@ -403,8 +408,12 @@ async def _handle_education(payload: ChatRequest, guardrails) -> ChatResponse:
             if hasattr(message_content, "content"):
                 message_content = message_content.content
 
+            message_content = str(message_content)
+            if rag_sources:
+                message_content += "\n\n**Fuentes:** " + " · ".join(rag_sources)
+
             try:
-                message_content = await guardrails.async_validate_output(str(message_content))
+                message_content = await guardrails.async_validate_output(message_content)
             except GuardrailsValidationError as e:
                 raise HTTPException(status_code=500, detail={
                     "error": e.error_type,
@@ -412,7 +421,7 @@ async def _handle_education(payload: ChatRequest, guardrails) -> ChatResponse:
                 })
 
             return ChatResponse(
-                message=str(message_content),
+                message=message_content,
                 metadata={"confidence": 0.90, "type": "education_rag"},
                 transaction_action=None,
             )

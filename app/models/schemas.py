@@ -315,8 +315,9 @@ class RagChunk(BaseModel):
     """Un fragmento de texto recuperado en la búsqueda semántica."""
 
     content: str = Field(description="Texto del fragmento recuperado.")
-    source_title: Optional[str] = Field(default=None, description="Título de la fuente.")
-    source_author: Optional[str] = Field(default=None, description="Autor de la fuente.")
+    tip_title: Optional[str] = Field(default=None, description="Título del tip al que pertenece el chunk.")
+    source_title: Optional[str] = Field(default=None, description="Título de la fuente bibliográfica. None si el chunk viene del tip directamente.")
+    source_author: Optional[str] = Field(default=None, description="Autor de la fuente bibliográfica.")
     similarity: float = Field(description="Similitud coseno con la consulta (0-1).")
 
 

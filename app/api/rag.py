@@ -74,6 +74,7 @@ def rag_search(payload: RagSearchRequest) -> RagSearchResponse:
     chunks = [
         RagChunk(
             content=item["content"],
+            tip_title=item.get("tip_title"),
             source_title=item.get("source_title"),
             source_author=item.get("source_author"),
             similarity=float(item.get("similarity", 0.0)),
