@@ -13,23 +13,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir -r requirements.txt
 
-# GUARDRAILS HUB VALIDATORS — TEMPORARILY DISABLED (2026-05-18)
-# The Guardrails Hub registry removed these packages from PyPI on 2026-05-11
-# (same supply chain incident that quarantined guardrails-ai itself).
-# hub install hub://tryolabs/restricttotopic, hub://guardrails/toxic_language,
-# and hub://guardrails/detect_pii all return 404/no matching distribution.
-# Re-enable this block once the Hub registry is restored:
-#
-# RUN --mount=type=secret,id=guardrails_token \
-#     GRTOKEN=$(cat /run/secrets/guardrails_token) && \
-#     guardrails configure \
-#       --token "$GRTOKEN" \
-#       --disable-metrics \
-#       --disable-remote-inferencing && \
-#     guardrails hub install hub://tryolabs/restricttotopic --quiet && \
-#     guardrails hub install hub://guardrails/toxic_language --quiet && \
-#     guardrails hub install hub://guardrails/detect_pii --quiet && \
-#     rm -f ~/.guardrailsrc
+RUN --mount=type=secret,id=guardrails_token \
+    GRTOKEN=$(cat /run/secrets/guardrails_token) && \
+    guardrails configure \
+      --token "$GRTOKEN" \
+      --disable-metrics \
+      --disable-remote-inferencing && \
+    guardrails hub install hub://tryolabs/restricttotopic --quiet && \
+    guardrails hub install hub://guardrails/toxic_language --quiet && \
+    guardrails hub install hub://guardrails/detect_pii --quiet && \
+    printf 'enable_metrics=false\nuse_remote_inferencing=false\n' > ~/.guardrailsrc
+
+# Pre-download the detoxify multilingual model (~500 MB) so it is baked into
+# the image and the service does not need to fetch it on every cold start.
+RUN python -c "import detoxify, torch; detoxify.Detoxify('multilingual', device=torch.device('cpu'))"
 
 COPY app ./app
 
