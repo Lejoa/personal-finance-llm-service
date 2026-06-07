@@ -11,7 +11,9 @@
       "total_income": 5000000,
       "total_expenses": 3200000,
       "savings_rate": 36,
-      "previous_savings_rate": 28
+      "previous_savings_rate": 31.1,
+      "previous_income": 4500000,
+      "previous_expenses": 3100000
     },
     "categories": [
       {"name": "Comida",          "amount": 1200000},
@@ -23,7 +25,8 @@
     "budgets": [
       {"name": "Comida",          "limit": 1000000, "spent": 1200000},
       {"name": "Entretenimiento", "limit": 350000,  "spent": 300000}
-    ]
+    ],
+    "available_categories": ["Comida", "Transporte", "Entretenimiento", "Servicios", "Otros"]
   },
   "test_cases": [
     {
@@ -32,23 +35,31 @@
       "metrics": ["answer_relevancy", "faithfulness"],
       "input": "¿Estoy gastando más que los meses anteriores?",
       "additional_context_data": {
+        "previous_income":      4500000,
+        "previous_expenses":    3100000,
+        "previous_savings_rate": 31.1,
         "category_trends": [
           {"name": "Comida",          "current_month": 1200000, "avg_3_months": 1050000, "delta_pct": 14.3},
           {"name": "Transporte",      "current_month": 400000,  "avg_3_months": 430000,  "delta_pct": -7.0},
           {"name": "Entretenimiento", "current_month": 300000,  "avg_3_months": 280000,  "delta_pct": 7.1},
           {"name": "Servicios",       "current_month": 500000,  "avg_3_months": 490000,  "delta_pct": 2.0},
           {"name": "Otros",           "current_month": 800000,  "avg_3_months": 750000,  "delta_pct": 6.7}
+        ],
+        "budget_health": [
+          {"name": "Comida",          "pct_used": 120.0, "spent": 1200000, "limit": 1000000, "days_remaining": 18},
+          {"name": "Entretenimiento", "pct_used": 85.7,  "spent": 300000,  "limit": 350000,  "days_remaining": 18}
         ]
       },
-      "description": "trends: el LLM debe usar los deltas históricos del additional_context para comparar con meses anteriores, no solo los datos del mes actual",
+      "description": "trends: el LLM debe usar el resumen del mes anterior, los deltas históricos de categorías y el estado de presupuestos del additional_context",
       "retrieval_context": [
-        "El gasto total actual es $3.200.000 COP en abril de 2026.",
-        "Comida aumentó un 14.3% respecto al promedio de los últimos 3 meses (promedio $1.050.000, actual $1.200.000 COP).",
-        "Transporte disminuyó un 7.0% respecto al promedio (promedio $430.000, actual $400.000 COP).",
-        "Entretenimiento aumentó un 7.1% (promedio $280.000, actual $300.000 COP).",
-        "Los datos históricos comparativos solo están disponibles en el additional_context."
+        "El mes pasado los ingresos fueron $4.500.000 COP, los gastos $3.100.000 COP y la tasa de ahorro fue del 31,1%.",
+        "El gasto total actual este mes es $3.200.000 COP en abril de 2026.",
+        "Comida: promedio $1.050.000 COP, este mes $1.200.000 COP (+14.3%).",
+        "Transporte: promedio $430.000 COP, este mes $400.000 COP (-7.0%).",
+        "Entretenimiento: promedio $280.000 COP, este mes $300.000 COP (+7.1%). Servicios: promedio $490.000 COP, este mes $500.000 COP (+2.0%). Otros: promedio $750.000 COP, este mes $800.000 COP (+6.7%).",
+        "Estado de presupuestos: Comida al 120% (excedido), Entretenimiento al 85.7%."
       ],
-      "expected_output": "En general sí, aunque no en todas las categorías. Comida subió un 14.3% sobre su promedio de 3 meses y Otros un 6.7%. Solo Transporte bajó un 7.0%, compensando parte del aumento."
+      "expected_output": "En general sí. Este mes llevas $3.200.000 COP en gastos frente a $3.100.000 COP del mes anterior. Comida subió un 14.3% sobre su promedio de 3 meses y ya superó su presupuesto. Solo Transporte bajó un 7.0%."
     },
     {
       "id": "CE3",
@@ -132,6 +143,60 @@
         "La proyección y velocidad de gasto solo están disponibles en additional_context."
       ],
       "expected_output": "Sí, la proyección indica un ahorro de $1.800.000 COP al final del mes (36%), mejor que el mes anterior (28%). Tu ritmo de $266.667 COP/día está dentro del rango esperado."
+    },
+    {
+      "id": "CE6",
+      "context_type": "historical",
+      "metrics": ["answer_relevancy", "faithfulness"],
+      "input": "¿Cuánto gasté en enero?",
+      "additional_context_data": {
+        "type": "totals",
+        "period": "enero 2026",
+        "monthly_totals": [
+          {"month": "enero 2026", "income": 4800000, "expenses": 3100000, "savings_rate": 35.4}
+        ],
+        "categories": [
+          {"name": "Comida",          "amount": 950000},
+          {"name": "Otros",           "amount": 720000},
+          {"name": "Servicios",       "amount": 480000},
+          {"name": "Transporte",      "amount": 380000},
+          {"name": "Entretenimiento", "amount": 570000}
+        ]
+      },
+      "description": "historical (totals): el LLM debe usar EXCLUSIVAMENTE los datos del additional_context para informar el gasto total y el desglose de enero 2026",
+      "retrieval_context": [
+        "En enero de 2026: ingresos $4.800.000 COP | gastos $3.100.000 COP | ahorro 35,4%.",
+        "Desglose de gastos en enero 2026: Comida $950.000 COP, Otros $720.000 COP, Servicios $480.000 COP, Transporte $380.000 COP, Entretenimiento $570.000 COP.",
+        "El total de gastos en enero 2026 fue $3.100.000 COP.",
+        "Los datos de enero solo están disponibles en el additional_context, no en el contexto base (que es abril 2026)."
+      ],
+      "expected_output": "En enero de 2026 gastaste $3.100.000 COP en total. Tu mayor gasto fue Comida con $950.000 COP, seguida de Otros ($720.000 COP) y Entretenimiento ($570.000 COP). Tu tasa de ahorro ese mes fue del 35,4%."
+    },
+    {
+      "id": "CE8",
+      "context_type": "historical",
+      "metrics": ["answer_relevancy", "faithfulness"],
+      "input": "¿Cuánto gasté en comida en los últimos 3 meses?",
+      "additional_context_data": {
+        "type": "category",
+        "period": "febrero 2026 - abril 2026",
+        "category_name": "Comida",
+        "monthly_data": [
+          {"month": "febrero 2026", "amount": 900000},
+          {"month": "marzo 2026",   "amount": 1050000},
+          {"month": "abril 2026",   "amount": 1200000}
+        ]
+      },
+      "description": "historical (category): el LLM debe reportar el gasto por mes y el total del período usando EXCLUSIVAMENTE el additional_context",
+      "retrieval_context": [
+        "Datos históricos — Comida (febrero 2026 - abril 2026):",
+        "- febrero 2026: $900.000 COP",
+        "- marzo 2026: $1.050.000 COP",
+        "- abril 2026: $1.200.000 COP",
+        "Total en el período: $3.150.000 COP.",
+        "El gasto en Comida ha ido aumentando mes a mes: +16,7% de febrero a marzo y +14,3% de marzo a abril."
+      ],
+      "expected_output": "En los últimos 3 meses gastaste $3.150.000 COP en Comida: $900.000 en febrero, $1.050.000 en marzo y $1.200.000 en abril. El gasto viene aumentando mes a mes."
     }
   ]
 }

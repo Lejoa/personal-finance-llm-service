@@ -5,31 +5,31 @@
 # tiempo o recursos antes de ver resultados.
 #
 # Casos seleccionados (1 representativo por categoría/tipo):
-#   Guardrails  (5/20):  G1(topic-off), G2(topic-off), G3(on_topic), T1(toxic), P1(pii)
-#   Clasificador(7/18):  CL1(trends), CL4(budget), CL7(categories), CL10(savings),
+#   Guardrails  (4/10):  T1(toxic), T3(toxic+financiero), P1(pii-email), P3(pii-tarjeta)
+#   Clasificador(7/21):  CL1(trends), CL4(budget), CL7(categories), CL10(savings),
 #                        CL13(transaction), CL15(question), CL17(none)
-#   Quality base(2/8):   Q5(question), Q3(savings)
-#   Quality enriq(2/5):  CE1(trends), CE3(budget)
+#   Quality base(3/10):  Q5(question), Q3(savings), Q21(transaction)
+#   Quality enriq(3/7):  CE1(trends), CE3(budget), CE6(historical)
 #
 # Archivos de casos de prueba leídos:
-#   tests/test_cases.json
-#     └─ Fuente de casos Guardrail (categoría "guardrail").
-#        Leído por eval_models_smoke.py → eval_models.py (load_test_cases).
+#   tests/test_cases/guard_rails_cases.json
+#     └─ Fuente de casos Guardrail (10 casos: 5 ToxicLanguage + 5 DetectPII).
+#        Leído por eval_models_smoke.py → eval_topics.py (load_test_cases).
 #        Estructura: { "test_cases": [ { "id": "G1", "category": "guardrail",
 #                      "subcategory": "off_topic|on_topic",
 #                      "guardrail_type": "topic|toxic|pii", ... } ] }
 #
-#   tests/classifier_test_cases.json
-#     └─ Fuente de casos del clasificador de contexto (CL1–CL18).
-#        Leído por eval_models_smoke.py → eval_models.py (load_classifier_test_cases).
+#   tests/test_cases/classifier_test_cases.json
+#     └─ Fuente de casos del clasificador de contexto (CL1–CL21).
+#        Leído por eval_models_smoke.py → eval_topics.py (load_classifier_test_cases).
 #        Estructura: { "test_cases": [ { "id": "CL1", "expected_context": "trends", ... } ] }
 #
-#   tests/quality_test_cases.json
+#   tests/test_cases/quality_test_cases.json
 #     └─ Fuente de casos de calidad base (Q1–Q8), sin additional_context.
 #        Leído por test_llm_quality_smoke.py → test_llm_quality.py (load_test_cases).
 #        Estructura: { "financial_context": {...}, "test_cases": [ { "id": "Q1", ... } ] }
 #
-#   tests/context_enriched_test_cases.json
+#   tests/test_cases/context_enriched_test_cases.json
 #     └─ Fuente de casos de calidad enriquecidos (CE1–CE5), con additional_context.
 #        Leído por test_llm_quality_smoke.py → test_llm_quality.py (load_enriched_test_cases).
 #        Estructura: { "financial_context": {...}, "test_cases": [ { "id": "CE1", ... } ] }
@@ -52,10 +52,10 @@ COMPOSE_FILE="$PROJECT_DIR/docker-compose.yaml"
 COMPOSE_TEST_FILE="$PROJECT_DIR/docker-compose.test.yaml"
 
 # IDs del subconjunto (~25%)
-GUARDRAIL_IDS="G1,G2,G3,T1,P1"
-CLASSIFIER_IDS="CL1,CL4,CL7,CL10,CL13,CL15,CL17"
-QUALITY_BASE_IDS="Q5,Q3"
-QUALITY_ENRICHED_IDS="CE1,CE3"
+GUARDRAIL_IDS="T1,T3,P1,P3"
+CLASSIFIER_IDS="CL1,CL4,CL7,CL10,CL13,CL15,CL17,CL19"
+QUALITY_BASE_IDS="Q5,Q3,Q21"
+QUALITY_ENRICHED_IDS="CE1,CE3,CE6"
 
 # Modelos a evaluar (por defecto todos)
 # NOTA: Solo modelos con tag :cloud funcionan con LLM_PROVIDER=ollama-cloud.
@@ -121,7 +121,7 @@ if ! curl -sf --max-time 5 "$HOST_SERVICE_URL/health" > /dev/null 2>&1; then
 fi
 
 cd "$PROJECT_DIR"
-mkdir -p tests/results
+mkdir -p tests/results/smoke_tests
 
 TOTAL_CASES=$(( $(echo "$GUARDRAIL_IDS" | tr ',' '\n' | wc -l) + \
                 $(echo "$CLASSIFIER_IDS" | tr ',' '\n' | wc -l) + \
@@ -149,7 +149,8 @@ for MODEL in "${MODELS[@]}"; do
   # Reiniciar servicio con el nuevo modelo (a menos que se pase --skip-restart)
   if [[ "$SKIP_RESTART" == false ]]; then
     log "Reiniciando llm-service con LLM_MODEL=$MODEL ..."
-    docker compose -f "$COMPOSE_FILE" stop llm-service
+    docker ps -q --filter "publish=8000" | xargs -r docker rm -f
+    docker rm -f llm-service 2>/dev/null || true
     LLM_MODEL="$MODEL" docker compose -f "$COMPOSE_FILE" up -d llm-service
     wait_for_service || { log "Saltando modelo $MODEL."; continue; }
   else
@@ -178,6 +179,7 @@ for MODEL in "${MODELS[@]}"; do
       --model "$MODEL" \
       --guardrail-ids "$GUARDRAIL_IDS" \
       --classifier-ids "$CLASSIFIER_IDS" \
+      --results-dir /app/tests/results/smoke_tests \
     || log "WARN: guardrail/classifier smoke eval finalizó con errores para $MODEL"
 
   # 2. Quality (subconjunto 25%)
@@ -190,6 +192,7 @@ for MODEL in "${MODELS[@]}"; do
       --base-url http://llm-service:8000 \
       --base-ids "$QUALITY_BASE_IDS" \
       --enriched-ids "$QUALITY_ENRICHED_IDS" \
+      --results-dir /app/tests/results/smoke_tests \
     || log "WARN: quality smoke eval finalizó con errores para $MODEL"
 
   log "Modelo $MODEL completado."
@@ -198,5 +201,18 @@ done
 
 log "========================================"
 log "Smoke comparison completado."
-log "Resultados en tests/results/ (prefijo smoke_)"
+log "Resultados en tests/results/smoke_tests/"
 log "========================================"
+
+log "Generando reportes CSV..."
+python3 "$SCRIPT_DIR/compare_results.py" \
+  --smoke \
+  --results-dir "$PROJECT_DIR/tests/results/smoke_tests" \
+  --output "$PROJECT_DIR/tests/results/smoke_tests/comparison_report.json"
+
+python3 "$SCRIPT_DIR/details_export_csv.py" \
+  --smoke \
+  --results-dir "$PROJECT_DIR/tests/results/smoke_tests" \
+  --output-dir "$PROJECT_DIR/tests/results/smoke_tests"
+
+log "CSVs guardados en tests/results/smoke_tests/"

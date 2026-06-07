@@ -43,8 +43,8 @@ from deepeval.test_case import LLMTestCase
 from langchain_openai import ChatOpenAI
 
 SCRIPT_DIR = Path(__file__).parent
-QUALITY_TEST_CASES_PATH = SCRIPT_DIR / "quality_test_cases.json"
-ENRICHED_TEST_CASES_PATH = SCRIPT_DIR / "context_enriched_test_cases.json"
+QUALITY_TEST_CASES_PATH = SCRIPT_DIR / "test_cases" / "quality_test_cases.json"
+ENRICHED_TEST_CASES_PATH = SCRIPT_DIR / "test_cases" / "context_enriched_test_cases.json"
 RESULTS_DIR = SCRIPT_DIR / "results"
 DEFAULT_BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 REQUEST_TIMEOUT = 300.0
@@ -115,20 +115,47 @@ def _fmt(amount: float) -> str:
 def format_additional_context(context_type: str, data: dict) -> str:
     """
     Construye el string additional_context a partir de datos estructurados,
-    replicando los métodos formatTrendsContext, formatBudgetDetailContext,
-    formatCategoriesRankingContext y formatSavingsContext del backend PHP.
+    replicando los métodos del backend PHP: formatTrendsContext,
+    formatBudgetDetailContext, formatCategoriesRankingContext, formatSavingsContext
+    (FinancialContextService) y buildContext (HistoricalFinancialQueryService).
     """
     if context_type == "trends":
+        prev_income = data.get("previous_income", 0)
+        prev_expenses = data.get("previous_expenses", 0)
+        prev_savings_rate = data.get("previous_savings_rate", 0)
         trends = data.get("category_trends", [])
-        if not trends:
-            return ""
-        lines = ["Contexto histórico (últimos 3 meses):"]
-        for t in trends:
-            delta = f"+{t['delta_pct']}%" if t["delta_pct"] >= 0 else f"{t['delta_pct']}%"
-            lines.append(
-                f"- {t['name']}: promedio ${_fmt(t['avg_3_months'])} COP,"
-                f" este mes ${_fmt(t['current_month'])} COP ({delta})"
-            )
+        budget_health = data.get("budget_health", [])
+
+        prev_savings_str = f"{prev_savings_rate:.1f}".replace(".", ",")
+        lines = [
+            "Resumen del mes pasado:",
+            f"- Ingresos: ${_fmt(prev_income)} COP",
+            f"- Gastos: ${_fmt(prev_expenses)} COP",
+            f"- Tasa de ahorro: {prev_savings_str}%",
+        ]
+
+        if trends:
+            lines.append("")
+            lines.append("Comparación por categoría (promedio 3 meses vs. este mes):")
+            for t in trends:
+                delta = f"+{t['delta_pct']}%" if t["delta_pct"] >= 0 else f"{t['delta_pct']}%"
+                lines.append(
+                    f"- {t['name']}: promedio ${_fmt(t['avg_3_months'])} COP,"
+                    f" este mes ${_fmt(t['current_month'])} COP ({delta})"
+                )
+
+        if budget_health:
+            lines.append("")
+            lines.append("Estado actual de presupuestos (mes en curso):")
+            for b in budget_health:
+                spent = b.get("spent", 0)
+                limit = b.get("limit", 0)
+                lines.append(
+                    f"- {b['name']}: {b['pct_used']}% usado"
+                    f" (${_fmt(spent)} de ${_fmt(limit)} COP),"
+                    f" quedan {b['days_remaining']} días"
+                )
+
         return "\n".join(lines)
 
     if context_type == "budget":
@@ -162,6 +189,62 @@ def format_additional_context(context_type: str, data: dict) -> str:
             f"Proyección fin de mes: ${_fmt(projected)} COP en gastos. "
             f"Tasa de ahorro mes anterior: {prev_rate}%."
         )
+
+    if context_type == "historical":
+        period = data.get("period", "")
+        hist_type = data.get("type", "totals")
+
+        if hist_type == "category":
+            category = data.get("category_name", "")
+            rows = data.get("monthly_data", [])
+            if not rows:
+                return ""
+            total = sum(r["amount"] for r in rows)
+            lines = [f"Datos históricos — {category} ({period}):"]
+            for row in rows:
+                lines.append(f"- {row['month']}: ${_fmt(row['amount'])} COP")
+            lines.append(f"Total en el período: ${_fmt(total)} COP")
+            return "\n".join(lines)
+
+        # totals (default) — replica buildTotalsContext
+        rows = data.get("monthly_totals", [])
+        if not rows:
+            return ""
+        lines = [f"Datos históricos ({period}):"]
+        total_income = 0.0
+        total_expenses = 0.0
+        for row in rows:
+            income = row["income"]
+            expenses = row["expenses"]
+            savings_rate = row["savings_rate"]
+            total_income += income
+            total_expenses += expenses
+            savings_str = f"{savings_rate:.1f}".replace(".", ",")
+            lines.append(
+                f"- {row['month']}: ingresos ${_fmt(income)} COP"
+                f" | gastos ${_fmt(expenses)} COP"
+                f" | ahorro {savings_str}%"
+            )
+
+        total_savings = (
+            round(((total_income - total_expenses) / total_income) * 100, 1)
+            if total_income > 0 else 0.0
+        )
+        total_savings_str = f"{total_savings:.1f}".replace(".", ",")
+        lines.append(
+            f"Total período: ingresos ${_fmt(total_income)} COP"
+            f" | gastos ${_fmt(total_expenses)} COP"
+            f" | ahorro {total_savings_str}%"
+        )
+
+        categories = data.get("categories", [])
+        if categories:
+            lines.append("")
+            lines.append(f"Desglose de gastos por categoría ({period}):")
+            for cat in categories:
+                lines.append(f"- {cat['name']}: ${_fmt(cat['amount'])} COP")
+
+        return "\n".join(lines)
 
     return ""
 

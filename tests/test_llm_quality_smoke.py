@@ -40,11 +40,11 @@ SMOKE_BASE_IDS     = {"Q5", "Q3"}
 SMOKE_ENRICHED_IDS = {"CE1", "CE3"}
 
 
-def save_smoke_results(label: str, judge_name: str, results: list, scores: dict):
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+def save_smoke_results(label: str, judge_name: str, results: list, scores: dict, results_dir: Path = RESULTS_DIR):
+    results_dir.mkdir(parents=True, exist_ok=True)
     safe = judge_name.replace("/", "_").replace(":", "_")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filepath = RESULTS_DIR / f"smoke_quality_{label}_{safe}_{timestamp}.json"
+    filepath = results_dir / f"smoke_quality_{label}_{safe}_{timestamp}.json"
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(
             {
@@ -68,6 +68,11 @@ def main():
     )
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
     parser.add_argument(
+        "--results-dir",
+        default=None,
+        help="Directorio donde guardar los JSON de resultados (default: tests/results)",
+    )
+    parser.add_argument(
         "--base-ids",
         default=",".join(SMOKE_BASE_IDS),
         help="IDs de la suite base separados por coma (default: %(default)s)",
@@ -81,6 +86,7 @@ def main():
 
     base_ids     = set(args.base_ids.split(","))
     enriched_ids = set(args.enriched_ids.split(","))
+    results_dir  = Path(args.results_dir) if args.results_dir else RESULTS_DIR
     base_url     = args.base_url
 
     # Health check
@@ -113,7 +119,7 @@ def main():
         )
         scores_base = calculate_scores(results_base, wall_base)
         print_summary(f"{judge_name} [base-smoke]", scores_base)
-        save_smoke_results("base", judge_name, results_base, scores_base)
+        save_smoke_results("base", judge_name, results_base, scores_base, results_dir)
 
         # --- Suite enriquecida (subconjunto) ---
         enriched = load_enriched_test_cases()
@@ -127,7 +133,7 @@ def main():
         )
         scores_enriched = calculate_scores(results_enriched, wall_enriched)
         print_summary(f"{judge_name} [enriched-smoke]", scores_enriched)
-        save_smoke_results("enriched", judge_name, results_enriched, scores_enriched)
+        save_smoke_results("enriched", judge_name, results_enriched, scores_enriched, results_dir)
 
 
 if __name__ == "__main__":

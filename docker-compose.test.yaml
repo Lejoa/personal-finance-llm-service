@@ -10,7 +10,7 @@ services:
     environment:
       - BASE_URL=http://llm-service:8000
     command: >
-      python tests/eval_models.py
+      python tests/eval_topics.py
       --base-url http://llm-service:8000
     networks:
       llm_net:

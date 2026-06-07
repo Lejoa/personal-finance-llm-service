@@ -1,8 +1,7 @@
 """
 Script de evaluación de guards (Guardrails-AI) para el servicio financiero.
 
-Evalúa los tres guards del input_guard:
-  - RestrictToTopic  (G*):  off_topic → HTTP 422 | on_topic → HTTP 200
+Evalúa los guards del input_guard (RestrictToTopic omitido):
   - ToxicLanguage    (T*):  mensajes tóxicos     → HTTP 422
   - DetectPII        (P*):  mensajes con PII      → HTTP 422
 
@@ -12,7 +11,7 @@ Uso con Docker (recomendado):
      docker compose -f docker-compose.yaml -f docker-compose.test.yaml run --rm llm-tests
   3. Para especificar modelo:
      docker compose -f docker-compose.yaml -f docker-compose.test.yaml run --rm llm-tests \\
-       python tests/eval_models.py --base-url http://llm-service:8000 --model gpt-4o
+       python tests/eval_topics.py --base-url http://llm-service:8000 --model gpt-4o
   4. Los resultados se guardan en tests/results/<modelo>_<timestamp>.json
 """
 
@@ -27,8 +26,8 @@ from pathlib import Path
 import httpx
 
 SCRIPT_DIR = Path(__file__).parent
-TEST_CASES_PATH = SCRIPT_DIR / "test_cases.json"
-CLASSIFIER_TEST_CASES_PATH = SCRIPT_DIR / "classifier_test_cases.json"
+TEST_CASES_PATH = SCRIPT_DIR / "test_cases" / "guard_rails_cases.json"
+CLASSIFIER_TEST_CASES_PATH = SCRIPT_DIR / "test_cases" / "classifier_test_cases.json"
 RESULTS_DIR = SCRIPT_DIR / "results"
 DEFAULT_BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 REQUEST_TIMEOUT = 300.0
@@ -267,7 +266,6 @@ def calculate_scores(results: list) -> dict:
                 "score_pct": round(on_passed / len(on_topic) * 100, 1) if on_topic else 0,
             },
             "by_guard": {
-                "topic": _guard_score("topic"),
                 "toxic": _guard_score("toxic"),
                 "pii":   _guard_score("pii"),
             },
@@ -296,7 +294,6 @@ def print_summary(model_name: str, scores: dict):
     print(f"    Off-topic:    {off['passed']}/{off['total']} detectados — {off['score_pct']}%")
     print(f"    On-topic:     {on['passed']}/{on['total']} aceptados  — {on['score_pct']}%")
     print(f"\n  Desglose por guard:")
-    print(f"    RestrictToTopic:  {bg['topic']['passed']}/{bg['topic']['total']} — {bg['topic']['score_pct']}%")
     print(f"    ToxicLanguage:    {bg['toxic']['passed']}/{bg['toxic']['total']} — {bg['toxic']['score_pct']}%")
     print(f"    DetectPII:        {bg['pii']['passed']}/{bg['pii']['total']} — {bg['pii']['score_pct']}%")
     print("=" * 65)
@@ -497,9 +494,12 @@ def main():
     args = parser.parse_args()
 
     data = load_test_cases()
-    financial_context = data["financial_context"]
-    # Solo ejecutar tests de la categoría guardrail
-    test_cases = [t for t in data["test_cases"] if t["category"] == "guardrail"]
+    financial_context = data.get("financial_context", {})
+    # Solo ejecutar tests de la categoría guardrail, omitiendo RestrictToTopic
+    test_cases = [
+        t for t in data["test_cases"]
+        if t["category"] == "guardrail" and t.get("guardrail_type") != "topic"
+    ]
 
     print(f"\n Verificando servicio en {args.base_url}...")
     try:
@@ -542,15 +542,13 @@ def main():
         print(f"  SMOKE TEST ERROR — {type(e).__name__}: {e}")
         sys.exit(1)
 
-    off_count = sum(1 for t in test_cases if t.get("subcategory") == "off_topic")
     on_count = sum(1 for t in test_cases if t.get("subcategory") == "on_topic")
-    topic_count = sum(1 for t in test_cases if t.get("guardrail_type") == "topic")
     toxic_count = sum(1 for t in test_cases if t.get("guardrail_type") == "toxic")
     pii_count = sum(1 for t in test_cases if t.get("guardrail_type") == "pii")
 
     print(f"\n  Modelo: {model_name}")
-    print(f"  Tests totales: {len(test_cases)} ({off_count} off_topic, {on_count} on_topic)")
-    print(f"  Por guard: RestrictToTopic={topic_count}, ToxicLanguage={toxic_count}, DetectPII={pii_count}")
+    print(f"  Tests totales: {len(test_cases)} ({on_count} on_topic)")
+    print(f"  Por guard: ToxicLanguage={toxic_count}, DetectPII={pii_count}")
     print()
 
     results = []

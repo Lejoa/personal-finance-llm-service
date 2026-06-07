@@ -1,7 +1,7 @@
 """
 compare_results.py
 Genera un reporte comparativo a partir de los JSON producidos por:
-  - eval_models.py / eval_models_smoke.py  → guardrail + classifier
+  - eval_topics.py / eval_models_smoke.py  → guardrail + classifier
   - test_llm_quality.py / test_llm_quality_smoke.py → quality
 
 Para cada modelo recoge la ejecución más reciente de cada suite y calcula

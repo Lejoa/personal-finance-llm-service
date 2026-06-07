@@ -4,26 +4,27 @@
 # modelo financiero de Ollama Cloud y genera un reporte comparativo.
 #
 # Archivos de casos de prueba leídos:
-#   tests/test_cases.json
-#     └─ Fuente de TODOS los casos Guardrail (20 casos, categoría "guardrail").
-#        Leído por eval_models.py (load_test_cases).
+#   tests/test_cases/guard_rails_cases.json
+#     └─ Fuente de TODOS los casos Guardrail (10 casos: 5 ToxicLanguage + 5 DetectPII).
+#        Leído por eval_topics.py (load_test_cases).
 #        Estructura: { "test_cases": [ { "id": "G1", "category": "guardrail",
 #                      "subcategory": "off_topic|on_topic",
 #                      "guardrail_type": "topic|toxic|pii", ... } ] }
 #
-#   tests/classifier_test_cases.json
+#   tests/test_cases/classifier_test_cases.json
 #     └─ Fuente de TODOS los casos del clasificador de contexto (18 casos, CL1–CL18).
-#        Leído por eval_models.py (load_classifier_test_cases).
+#        Leído por eval_topics.py (load_classifier_test_cases).
 #        Estructura: { "test_cases": [ { "id": "CL1", "expected_context": "trends", ... } ] }
 #
-#   tests/quality_test_cases.json
-#     └─ Fuente de TODOS los casos de calidad base (8 casos, Q1–Q8), sin additional_context.
+#   tests/test_cases/quality_test_cases.json
+#     └─ Fuente de TODOS los casos de calidad base (10 casos, sin additional_context).
+#        context_types: question, savings, budget, categories, transaction.
 #        Leído por test_llm_quality.py (load_test_cases).
 #        Estructura: { "financial_context": {...}, "test_cases": [ { "id": "Q1", ... } ] }
 #
-#   tests/context_enriched_test_cases.json
-#     └─ Fuente de TODOS los casos de calidad enriquecidos (5 casos, CE1–CE5),
-#        con additional_context para simular contexto financiero real.
+#   tests/test_cases/context_enriched_test_cases.json
+#     └─ Fuente de TODOS los casos de calidad enriquecidos (7 casos, con additional_context).
+#        context_types: trends, budget, categories, savings, historical.
 #        Leído por test_llm_quality.py (load_enriched_test_cases).
 #        Estructura: { "financial_context": {...}, "test_cases": [ { "id": "CE1", ... } ] }
 #
@@ -95,8 +96,9 @@ for MODEL in "${MODELS[@]}"; do
 
   # Reiniciar el servicio con el nuevo modelo
   log "Reiniciando llm-service con LLM_MODEL=$MODEL ..."
-  docker compose -f "$COMPOSE_FILE" stop llm-service
-  docker compose -f "$COMPOSE_FILE" up -d llm-service
+  docker ps -q --filter "publish=8000" | xargs -r docker rm -f
+  docker rm -f llm-service 2>/dev/null || true
+  LLM_MODEL="$MODEL" docker compose -f "$COMPOSE_FILE" up -d llm-service
   wait_for_service
 
   # Obtener IP actual del contenedor para smoke test desde el host
@@ -120,7 +122,7 @@ for MODEL in "${MODELS[@]}"; do
   docker compose -f "$COMPOSE_TEST_FILE" run --rm \
     -e LLM_MODEL="$MODEL" \
     llm-tests \
-    python tests/eval_models.py \
+    python tests/eval_topics.py \
       --base-url http://llm-service:8000 \
       --model "$MODEL" || log "WARN: guardrail/classifier eval finalizó con errores para $MODEL"
 

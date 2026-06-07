@@ -4,8 +4,8 @@
     {
       "id": "CL1",
       "context_type": "trends",
-      "message": "¿Estoy gastando más que los meses anteriores?",
-      "description": "Comparación explícita con meses anteriores → trends"
+      "message": "¿Estoy gastando más que el mes pasado?",
+      "description": "Comparación explícita con el mes anterior inmediato → trends"
     },
     {
       "id": "CL2",
@@ -16,8 +16,8 @@
     {
       "id": "CL3",
       "context_type": "trends",
-      "message": "¿He mejorado o empeorado en mis finanzas comparado con meses anteriores?",
-      "description": "Comparación temporal implícita → trends"
+      "message": "¿He mejorado o empeorado en mis finanzas respecto al mes anterior?",
+      "description": "Comparación directa con el mes anterior → trends"
     },
     {
       "id": "CL4",
@@ -108,6 +108,24 @@
       "context_type": "none",
       "message": "Recomiéndame una película",
       "description": "Solicitud de entretenimiento sin relación financiera → none"
+    },
+    {
+      "id": "CL19",
+      "context_type": "historical",
+      "message": "¿Cuánto gasté en comida en abril?",
+      "description": "Mes específico del pasado con categoría → historical con period_hint"
+    },
+    {
+      "id": "CL20",
+      "context_type": "historical",
+      "message": "¿Cuánto gané en los últimos 3 meses?",
+      "description": "Rango relativo de meses → historical con period_hint calculado"
+    },
+    {
+      "id": "CL21",
+      "context_type": "historical",
+      "message": "¿Cuánto he ahorrado en total este año?",
+      "description": "Rango desde inicio del año en curso → historical con period_hint from YYYY-01"
     }
   ]
 }

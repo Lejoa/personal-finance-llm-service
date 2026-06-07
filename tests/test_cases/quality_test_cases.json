@@ -9,7 +9,10 @@
       "period": "2026-02",
       "total_income": 5000000,
       "total_expenses": 3200000,
-      "savings_rate": 36
+      "savings_rate": 36,
+      "previous_savings_rate": 29.17,
+      "previous_income": 4800000,
+      "previous_expenses": 3400000
     },
     "categories": [
       {"name": "Comida", "amount": 1200000},
@@ -21,7 +24,8 @@
     "budgets": [
       {"name": "Comida", "limit": 1000000, "spent": 1200000},
       {"name": "Entretenimiento", "limit": 350000, "spent": 300000}
-    ]
+    ],
+    "available_categories": ["Comida", "Transporte", "Entretenimiento", "Servicios", "Otros"]
   },
   "test_cases": [
     {
@@ -136,6 +140,33 @@
         "No existe presupuesto asignado para la categoría Servicios en el período actual."
       ],
       "expected_output": "Gastaste 500.000 COP en Servicios en febrero, lo que equivale al 15.6% de tus gastos totales."
+    },
+    {
+      "id": "Q21",
+      "context_type": "transaction",
+      "metrics": ["answer_relevancy", "faithfulness"],
+      "input": "Quiero registrar un gasto de 50.000 en comida del restaurante",
+      "description": "transaction: el LLM debe confirmar la intención de registrar el gasto y los datos extraídos (monto, categoría, concepto) sin inventar información",
+      "retrieval_context": [
+        "El usuario indica un gasto de $50.000 COP.",
+        "La categoría indicada es Comida (disponible en el sistema).",
+        "El concepto indicado es 'restaurante'.",
+        "Las categorías de gasto disponibles son: Comida, Transporte, Entretenimiento, Servicios, Otros."
+      ],
+      "expected_output": "Entendido, voy a registrar un gasto de $50.000 COP en Comida con el concepto 'restaurante'."
+    },
+    {
+      "id": "Q22",
+      "context_type": "transaction",
+      "metrics": ["answer_relevancy"],
+      "input": "Agrega un ingreso de 2.500.000 por mi salario de este mes",
+      "description": "transaction: answer_relevancy — el LLM debe confirmar el registro del ingreso reconociendo monto y concepto",
+      "retrieval_context": [
+        "El usuario indica un ingreso de $2.500.000 COP.",
+        "El concepto indicado es 'salario'.",
+        "Los ingresos del período actual son $5.000.000 COP (febrero de 2026)."
+      ],
+      "expected_output": "Entendido, voy a registrar un ingreso de $2.500.000 COP por concepto de salario."
     }
   ]
 }

@@ -32,7 +32,7 @@ from pathlib import Path
 import httpx
 
 SCRIPT_DIR = Path(__file__).parent
-CLASSIFIER_TEST_CASES_PATH = SCRIPT_DIR / "classifier_test_cases.json"
+CLASSIFIER_TEST_CASES_PATH = SCRIPT_DIR / "test_cases" / "classifier_test_cases.json"
 RESULTS_DIR = SCRIPT_DIR / "results"
 DEFAULT_BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 

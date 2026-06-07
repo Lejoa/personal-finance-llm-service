@@ -1,14 +1,14 @@
 """
-Versión smoke (≈25%) de eval_models.py.
+Versión smoke (≈25%) de eval_topics.py.
 
 Ejecuta solo los casos de guardrail y clasificador indicados por --guardrail-ids
-y --classifier-ids. Reutiliza toda la lógica de eval_models.py sin duplicar código.
+y --classifier-ids. Reutiliza toda la lógica de eval_topics.py sin duplicar código.
 
 Uso:
   python tests/eval_models_smoke.py \\
     --base-url http://llm-service:8000 \\
     --model gpt-oss:120b \\
-    --guardrail-ids G1,G2,G3,T1,P1 \\
+    --guardrail-ids T1,T3,P1,P3 \\
     --classifier-ids CL1,CL4,CL7,CL10,CL13,CL15,CL17
 """
 
@@ -24,7 +24,7 @@ import httpx
 
 # Reutiliza toda la lógica del módulo principal
 sys.path.insert(0, str(Path(__file__).parent))
-from eval_models import (
+from eval_topics import (
     load_test_cases,
     load_classifier_test_cases,
     run_single_test,
@@ -39,15 +39,15 @@ from eval_models import (
 
 DEFAULT_BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 
-SMOKE_GUARDRAIL_IDS = {"G1", "G2", "G3", "T1", "P1"}
+SMOKE_GUARDRAIL_IDS = {"T1", "T3", "P1", "P3"}
 SMOKE_CLASSIFIER_IDS = {"CL1", "CL4", "CL7", "CL10", "CL13", "CL15", "CL17"}
 
 
-def save_smoke_results(label: str, model_name: str, results: list, scores: dict):
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+def save_smoke_results(label: str, model_name: str, results: list, scores: dict, results_dir: Path = RESULTS_DIR):
+    results_dir.mkdir(parents=True, exist_ok=True)
     safe_name = model_name.replace("/", "_").replace(":", "_")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filepath = RESULTS_DIR / f"smoke_{label}_{safe_name}_{timestamp}.json"
+    filepath = results_dir / f"smoke_{label}_{safe_name}_{timestamp}.json"
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(
             {
@@ -71,6 +71,11 @@ def main():
     parser.add_argument("--model", default=None)
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
     parser.add_argument(
+        "--results-dir",
+        default=None,
+        help="Directorio donde guardar los JSON de resultados (default: tests/results)",
+    )
+    parser.add_argument(
         "--guardrail-ids",
         default=",".join(SMOKE_GUARDRAIL_IDS),
         help="IDs de guardrail separados por coma (default: %(default)s)",
@@ -84,6 +89,7 @@ def main():
 
     guardrail_ids = set(args.guardrail_ids.split(","))
     classifier_ids = set(args.classifier_ids.split(","))
+    results_dir = Path(args.results_dir) if args.results_dir else RESULTS_DIR
 
     base_url = args.base_url
 
@@ -120,7 +126,7 @@ def main():
 
     # --- Guardrail subset ---
     data = load_test_cases()
-    financial_context = data["financial_context"]
+    financial_context = data.get("financial_context", {})
     all_guardrail = [t for t in data["test_cases"] if t["category"] == "guardrail"]
     guardrail_cases = [t for t in all_guardrail if t["id"] in guardrail_ids]
 
@@ -140,7 +146,7 @@ def main():
 
     guardrail_scores = calculate_scores(guardrail_results)
     print_summary(model_name, guardrail_scores)
-    save_smoke_results("guardrail", model_name, guardrail_results, guardrail_scores)
+    save_smoke_results("guardrail", model_name, guardrail_results, guardrail_scores, results_dir)
 
     # --- Classifier subset ---
     all_classifier = load_classifier_test_cases()
@@ -159,7 +165,7 @@ def main():
 
     classifier_scores = calculate_classifier_scores(classifier_results)
     print_classifier_summary(model_name, classifier_scores)
-    save_smoke_results("classifier", model_name, classifier_results, classifier_scores)
+    save_smoke_results("classifier", model_name, classifier_results, classifier_scores, results_dir)
 
 
 if __name__ == "__main__":
