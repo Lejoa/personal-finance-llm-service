@@ -42,28 +42,6 @@ services:
     profiles:
       - test-quality
 
-  llm-multi-turn-tests:
-    build:
-      context: .
-      dockerfile: Dockerfile.test
-    image: llm-service-test
-    container_name: llm-multi-turn-tests
-    volumes:
-      - ./tests:/app/tests
-    environment:
-      - BASE_URL=http://llm-service:8000
-      - OLLAMA_API_KEY=${OLLAMA_API_KEY}
-      - LLM_MODEL=${LLM_MODEL}
-      - JUDGE_MODEL=${JUDGE_MODEL:-gpt-oss:120b}
-    command: >
-      python tests/test_multi_turn.py
-      --base-url http://llm-service:8000
-    networks:
-      llm_net:
-        aliases:
-          - llm-multi-turn-tests
-    profiles:
-      - test-multi-turn
 
 networks:
   llm_net:

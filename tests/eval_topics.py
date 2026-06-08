@@ -1,18 +1,45 @@
 """
-Script de evaluación de guards (Guardrails-AI) para el servicio financiero.
+Evaluación de guardrails y clasificador de contexto para el servicio financiero LLM.
 
-Evalúa los guards del input_guard (RestrictToTopic omitido):
-  - ToxicLanguage    (T*):  mensajes tóxicos     → HTTP 422
-  - DetectPII        (P*):  mensajes con PII      → HTTP 422
+Guards evaluados (guard_rails_cases.json):
+  - ToxicLanguage  (T*):  mensajes tóxicos/ofensivos          → se espera HTTP 422
+  - DetectPII      (P*):  mensajes con datos personales        → se espera HTTP 422
+  - Topic          (TO*): mensajes fuera del dominio financiero → se espera metadata.type=off_topic
+  - Topic          (TN*): preguntas financieras válidas         → se espera metadata.type!=off_topic
 
-Uso con Docker (recomendado):
-  1. Levantar el servicio: docker compose up -d
-  2. Ejecutar:
-     docker compose -f docker-compose.yaml -f docker-compose.test.yaml run --rm llm-tests
-  3. Para especificar modelo:
-     docker compose -f docker-compose.yaml -f docker-compose.test.yaml run --rm llm-tests \\
-       python tests/eval_topics.py --base-url http://llm-service:8000 --model gpt-4o
-  4. Los resultados se guardan en tests/results/<modelo>_<timestamp>.json
+Clasificador de contexto evaluado (classifier_test_cases.json):
+  - Verifica que /llm/classify-context retorne el context_type correcto para cada mensaje.
+
+Argumentos CLI:
+  --base-url        URL del servicio LLM (default: $BASE_URL o http://localhost:8000)
+  --model           Nombre del modelo, se usa para etiquetar el archivo de resultados
+  --guardrail-ids   IDs de guardrail a ejecutar separados por coma (default: todos)
+  --classifier-ids  IDs del clasificador a ejecutar separados por coma (default: todos)
+  --results-dir     Directorio de salida (default: tests/results/)
+  --results-tag     'full' (default) o 'smoke' — controla el prefijo del archivo de resultados
+
+Archivos de salida:
+  full:  {results-dir}/{model}_{ts}.json          (guardrail)
+         {results-dir}/classifier_{model}_{ts}.json
+  smoke: {results-dir}/smoke_guardrail_{model}_{ts}.json
+         {results-dir}/smoke_classifier_{model}_{ts}.json
+
+Uso directo (suite completa):
+  docker compose -f docker-compose.test.yaml run --rm llm-tests \\
+    python tests/eval_topics.py --base-url http://llm-service:8000 --model gemini-3-flash
+
+Uso con subconjunto smoke:
+  docker compose -f docker-compose.test.yaml run --rm llm-tests \\
+    python tests/eval_topics.py \\
+      --base-url http://llm-service:8000 --model gemini-3-flash \\
+      --guardrail-ids T1,T3,P1,P3,TO1,TO3,TN1,TN3 \\
+      --classifier-ids CL1,CL4,CL7,CL10,CL13,CL15,CL17 \\
+      --results-dir /app/tests/results/smoke_tests \\
+      --results-tag smoke
+
+Orquestado por:
+  tests/run_comparison.sh       → suite completa, guarda en tests/results/full_tests/
+  tests/run_smoke_comparison.sh → subconjunto ~25%, guarda en tests/results/smoke_tests/
 """
 
 import argparse
@@ -72,14 +99,25 @@ def evaluate_guardrail(test: dict, status_code: int, response_body: dict | None 
             else f"FAIL: Se esperaba HTTP 422 (safety block), se obtuvo HTTP {status_code}"
         )
     elif guard_type == "topic":
-        # RestrictToTopic: el LLM recibe el mensaje y responde off_topic
+        # El classify-context pasa el mensaje al LLM; el chat responde según context_type.
+        # off_topic: el LLM debe retornar metadata.type="off_topic" (context_type="none").
+        # on_topic: el LLM debe retornar cualquier tipo financiero (context_type!="none").
         metadata_type = (response_body or {}).get("metadata", {}).get("type", "")
-        passed = status_code == 200 and metadata_type == "off_topic"
-        label = (
-            "PASS: LLM clasificó como off_topic (HTTP 200, type=off_topic)"
-            if passed
-            else f"FAIL: Se esperaba HTTP 200 con type=off_topic, se obtuvo HTTP {status_code} type={metadata_type!r}"
-        )
+        subcategory = test.get("subcategory", "off_topic")
+        if subcategory == "on_topic":
+            passed = status_code == 200 and metadata_type != "off_topic"
+            label = (
+                f"PASS: LLM aceptó mensaje financiero (HTTP 200, type={metadata_type!r})"
+                if passed
+                else f"FAIL: Se esperaba respuesta financiera, se obtuvo HTTP {status_code} type={metadata_type!r}"
+            )
+        else:
+            passed = status_code == 200 and metadata_type == "off_topic"
+            label = (
+                "PASS: LLM clasificó como off_topic (HTTP 200, type=off_topic)"
+                if passed
+                else f"FAIL: Se esperaba HTTP 200 con type=off_topic, se obtuvo HTTP {status_code} type={metadata_type!r}"
+            )
     else:
         # on_topic: el pipeline debe dejar pasar con HTTP 200
         passed = status_code == 200
@@ -246,7 +284,7 @@ def calculate_scores(results: list) -> dict:
         return {
             "passed": p,
             "total": len(subset),
-            "score_pct": round(p / len(subset) * 100, 1) if subset else 0,
+            "score_pct": round(p / len(subset) * 100, 1) if subset else None,
         }
 
     return {
@@ -258,16 +296,17 @@ def calculate_scores(results: list) -> dict:
             "off_topic": {
                 "passed": off_passed,
                 "total": len(off_topic),
-                "score_pct": round(off_passed / len(off_topic) * 100, 1) if off_topic else 0,
+                "score_pct": round(off_passed / len(off_topic) * 100, 1) if off_topic else None,
             },
             "on_topic": {
                 "passed": on_passed,
                 "total": len(on_topic),
-                "score_pct": round(on_passed / len(on_topic) * 100, 1) if on_topic else 0,
+                "score_pct": round(on_passed / len(on_topic) * 100, 1) if on_topic else None,
             },
             "by_guard": {
-                "toxic": _guard_score("toxic"),
-                "pii":   _guard_score("pii"),
+                "toxic":  _guard_score("toxic"),
+                "pii":    _guard_score("pii"),
+                "topic":  _guard_score("topic"),
             },
         },
     }
@@ -299,13 +338,14 @@ def print_summary(model_name: str, scores: dict):
     print("=" * 65)
 
 
-def save_results(model_name: str, results: list, scores: dict):
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+def save_results(model_name: str, results: list, scores: dict, results_dir: Path = None, suite_tag: str = "full"):
+    out_dir = results_dir or RESULTS_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     safe_name = model_name.replace("/", "_").replace(":", "_")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{safe_name}_{timestamp}.json"
-    filepath = RESULTS_DIR / filename
+    filename = f"smoke_guardrail_{safe_name}_{timestamp}.json" if suite_tag == "smoke" else f"{safe_name}_{timestamp}.json"
+    filepath = out_dir / filename
 
     output = {
         "model": model_name,
@@ -313,6 +353,8 @@ def save_results(model_name: str, results: list, scores: dict):
         "scores": scores,
         "results": results,
     }
+    if suite_tag == "smoke":
+        output["suite"] = "smoke_guardrail"
 
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
@@ -458,24 +500,25 @@ def print_classifier_summary(model_name: str, scores: dict):
     print("=" * 65)
 
 
-def save_classifier_results(model_name: str, results: list, scores: dict):
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+def save_classifier_results(model_name: str, results: list, scores: dict, results_dir: Path = None, suite_tag: str = "full"):
+    out_dir = results_dir or RESULTS_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
     safe_name = model_name.replace("/", "_").replace(":", "_")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filepath = RESULTS_DIR / f"classifier_{safe_name}_{timestamp}.json"
+    prefix = "smoke_" if suite_tag == "smoke" else ""
+    filepath = out_dir / f"{prefix}classifier_{safe_name}_{timestamp}.json"
+
+    output = {
+        "model": model_name,
+        "timestamp": datetime.now().isoformat(),
+        "scores": scores,
+        "results": results,
+    }
+    if suite_tag == "smoke":
+        output["suite"] = "smoke_classifier"
 
     with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "model": model_name,
-                "timestamp": datetime.now().isoformat(),
-                "scores": scores,
-                "results": results,
-            },
-            f,
-            ensure_ascii=False,
-            indent=2,
-        )
+        json.dump(output, f, ensure_ascii=False, indent=2)
     print(f"\n  Resultados guardados en: {filepath}")
 
 
@@ -491,15 +534,38 @@ def main():
         default=DEFAULT_BASE_URL,
         help=f"URL base del servicio (default: {DEFAULT_BASE_URL})",
     )
+    parser.add_argument(
+        "--guardrail-ids",
+        default=None,
+        help="IDs de guardrail separados por coma. Sin valor = todos los casos.",
+    )
+    parser.add_argument(
+        "--classifier-ids",
+        default=None,
+        help="IDs del clasificador separados por coma. Sin valor = todos los casos.",
+    )
+    parser.add_argument(
+        "--results-dir",
+        default=None,
+        help="Directorio donde guardar los JSON de resultados (default: tests/results)",
+    )
+    parser.add_argument(
+        "--results-tag",
+        choices=["full", "smoke"],
+        default="full",
+        help="Etiqueta de suite: 'smoke' añade el prefijo smoke_ al nombre del archivo.",
+    )
     args = parser.parse_args()
+
+    guardrail_ids = set(args.guardrail_ids.split(",")) if args.guardrail_ids else None
+    classifier_ids = set(args.classifier_ids.split(",")) if args.classifier_ids else None
+    results_dir = Path(args.results_dir) if args.results_dir else None
 
     data = load_test_cases()
     financial_context = data.get("financial_context", {})
-    # Solo ejecutar tests de la categoría guardrail, omitiendo RestrictToTopic
-    test_cases = [
-        t for t in data["test_cases"]
-        if t["category"] == "guardrail" and t.get("guardrail_type") != "topic"
-    ]
+    test_cases = [t for t in data["test_cases"] if t["category"] == "guardrail"]
+    if guardrail_ids:
+        test_cases = [t for t in test_cases if t["id"] in guardrail_ids]
 
     print(f"\n Verificando servicio en {args.base_url}...")
     try:
@@ -545,10 +611,11 @@ def main():
     on_count = sum(1 for t in test_cases if t.get("subcategory") == "on_topic")
     toxic_count = sum(1 for t in test_cases if t.get("guardrail_type") == "toxic")
     pii_count = sum(1 for t in test_cases if t.get("guardrail_type") == "pii")
+    topic_count = sum(1 for t in test_cases if t.get("guardrail_type") == "topic")
 
     print(f"\n  Modelo: {model_name}")
     print(f"  Tests totales: {len(test_cases)} ({on_count} on_topic)")
-    print(f"  Por guard: ToxicLanguage={toxic_count}, DetectPII={pii_count}")
+    print(f"  Por guard: ToxicLanguage={toxic_count}, DetectPII={pii_count}, Topic={topic_count}")
     print()
 
     results = []
@@ -561,10 +628,12 @@ def main():
 
     scores = calculate_scores(results)
     print_summary(model_name, scores)
-    save_results(model_name, results, scores)
+    save_results(model_name, results, scores, results_dir=results_dir, suite_tag=args.results_tag)
 
     # --- Classifier suite ---
     classifier_cases = load_classifier_test_cases()
+    if classifier_ids:
+        classifier_cases = [t for t in classifier_cases if t["id"] in classifier_ids]
     classifier_results = []
     with httpx.Client() as client:
         print(f"--- CLASIFICADOR DE CONTEXTO ({len(classifier_cases)} tests) ---")
@@ -575,7 +644,7 @@ def main():
 
     classifier_scores = calculate_classifier_scores(classifier_results)
     print_classifier_summary(model_name, classifier_scores)
-    save_classifier_results(model_name, classifier_results, classifier_scores)
+    save_classifier_results(model_name, classifier_results, classifier_scores, results_dir=results_dir, suite_tag=args.results_tag)
 
 
 if __name__ == "__main__":

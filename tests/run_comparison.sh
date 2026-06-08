@@ -37,8 +37,8 @@
 #   - OLLAMA_API_KEY exportada o definida en .env
 #   - JUDGE_MODEL exportada o usa el default gpt-oss:120b
 #
-# Los resultados individuales se guardan en tests/results/
-# El reporte comparativo final en tests/results/comparison_report.json
+# Los resultados individuales se guardan en tests/results/full_tests/
+# El reporte comparativo final en tests/results/full_tests/comparison_report.json
 
 set -euo pipefail
 
@@ -85,7 +85,7 @@ wait_for_service() {
 
 cd "$PROJECT_DIR"
 
-mkdir -p tests/results
+mkdir -p tests/results/full_tests
 
 for MODEL in "${MODELS[@]}"; do
   log "========================================"
@@ -124,14 +124,20 @@ for MODEL in "${MODELS[@]}"; do
     llm-tests \
     python tests/eval_topics.py \
       --base-url http://llm-service:8000 \
-      --model "$MODEL" || log "WARN: guardrail/classifier eval finalizó con errores para $MODEL"
+      --model "$MODEL" \
+      --results-dir /app/tests/results/full_tests \
+    || log "WARN: guardrail/classifier eval finalizó con errores para $MODEL"
 
   # 2. Quality evaluation
   log "--- [2/2] Quality evaluation ---"
   docker compose -f "$COMPOSE_TEST_FILE" --profile test-quality run --rm \
     -e LLM_MODEL="$MODEL" \
     -e JUDGE_MODEL="$JUDGE_MODEL" \
-    llm-quality-tests || log "WARN: quality eval finalizó con errores para $MODEL"
+    llm-quality-tests \
+    python tests/test_llm_quality.py \
+      --base-url http://llm-service:8000 \
+      --results-dir /app/tests/results/full_tests \
+    || log "WARN: quality eval finalizó con errores para $MODEL"
 
   log "Modelo $MODEL completado."
   echo ""
@@ -142,6 +148,8 @@ log "Todos los modelos evaluados."
 log "Generando reporte comparativo..."
 log "========================================"
 
-python3 "$SCRIPT_DIR/compare_results.py"
+python3 "$SCRIPT_DIR/compare_results.py" \
+  --results-dir "$PROJECT_DIR/tests/results/full_tests" \
+  --output "$PROJECT_DIR/tests/results/full_tests/comparison_report.json"
 
-log "Reporte guardado en tests/results/comparison_report.json"
+log "Reporte guardado en tests/results/full_tests/comparison_report.json"

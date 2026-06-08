@@ -174,12 +174,13 @@ for MODEL in "${MODELS[@]}"; do
   docker compose -f "$COMPOSE_TEST_FILE" run --rm \
     -e LLM_MODEL="$MODEL" \
     llm-tests \
-    python tests/eval_models_smoke.py \
+    python tests/eval_topics.py \
       --base-url http://llm-service:8000 \
       --model "$MODEL" \
       --guardrail-ids "$GUARDRAIL_IDS" \
       --classifier-ids "$CLASSIFIER_IDS" \
       --results-dir /app/tests/results/smoke_tests \
+      --results-tag smoke \
     || log "WARN: guardrail/classifier smoke eval finalizó con errores para $MODEL"
 
   # 2. Quality (subconjunto 25%)
@@ -188,11 +189,12 @@ for MODEL in "${MODELS[@]}"; do
     -e LLM_MODEL="$MODEL" \
     -e JUDGE_MODEL="$JUDGE_MODEL" \
     llm-quality-tests \
-    python tests/test_llm_quality_smoke.py \
+    python tests/test_llm_quality.py \
       --base-url http://llm-service:8000 \
       --base-ids "$QUALITY_BASE_IDS" \
       --enriched-ids "$QUALITY_ENRICHED_IDS" \
       --results-dir /app/tests/results/smoke_tests \
+      --results-tag smoke \
     || log "WARN: quality smoke eval finalizó con errores para $MODEL"
 
   log "Modelo $MODEL completado."

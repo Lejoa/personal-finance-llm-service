@@ -1,24 +1,50 @@
 """
-Evaluación de calidad de respuestas del LLM con deepEval.
-Usa Ollama Cloud (gpt-oss:120b-cloud) como modelo juez vía DeepEvalBaseLLM.
+Evaluación de calidad de respuestas del LLM con DeepEval.
+Usa Ollama Cloud como modelo juez vía DeepEvalBaseLLM (configurado por $JUDGE_MODEL).
 
-Métricas evaluadas:
+Métricas evaluadas (umbral: 0.7):
   - AnswerRelevancy:      ¿la respuesta es relevante al input?
   - Faithfulness:         ¿la respuesta se basa en el contexto sin inventar datos?
   - ContextualRelevancy:  ¿el contexto proporcionado es relevante para el input?
   - ContextualRecall:     ¿la respuesta cubre los puntos clave del contexto?
   - ContextualPrecision:  ¿los fragmentos del contexto usados son los correctos?
 
-Prerrequisitos:
-  - OLLAMA_API_KEY, LLM_MODEL (modelo bajo prueba) y JUDGE_MODEL (juez DeepEval, default gpt-oss:120b-cloud) definidas en .env
-  - Servicio llm-service corriendo: docker compose up -d
+Variables de entorno requeridas:
+  OLLAMA_API_KEY   Clave de acceso a Ollama Cloud
+  LLM_MODEL        Modelo bajo prueba (ej: gemini-3-flash-preview:cloud)
+  JUDGE_MODEL      Modelo juez DeepEval (default: gpt-oss:120b)
 
-Uso con Docker (recomendado):
-  1. docker compose up -d
-  2. docker compose -f docker-compose.test.yaml --profile test-quality up \\
-       --abort-on-container-exit llm-quality-tests
+Argumentos CLI:
+  --base-url      URL del servicio LLM (default: $BASE_URL o http://localhost:8000)
+  --suite         Suite a ejecutar: 'base' | 'enriched' | 'all' (default: all)
+  --base-ids      IDs de la suite base separados por coma (default: todos)
+  --enriched-ids  IDs de la suite enriquecida separados por coma (default: todos)
+  --results-dir   Directorio de salida (default: tests/results/)
+  --results-tag   'full' (default) o 'smoke' — controla el prefijo del archivo de resultados
 
-Los resultados se guardan en tests/results/quality_<modelo>_<timestamp>.json
+Archivos de salida:
+  full:  {results-dir}/quality_{judge}_base_{ts}.json
+         {results-dir}/quality_{judge}_enriched_{ts}.json
+  smoke: {results-dir}/smoke_quality_base_{judge}_{ts}.json
+         {results-dir}/smoke_quality_enriched_{judge}_{ts}.json
+
+Uso directo (suite completa):
+  docker compose -f docker-compose.test.yaml --profile test-quality run --rm llm-quality-tests \\
+    python tests/test_llm_quality.py \\
+      --base-url http://llm-service:8000 \\
+      --results-dir /app/tests/results/full_tests
+
+Uso con subconjunto smoke:
+  docker compose -f docker-compose.test.yaml --profile test-quality run --rm llm-quality-tests \\
+    python tests/test_llm_quality.py \\
+      --base-url http://llm-service:8000 \\
+      --base-ids Q5,Q3,Q21 --enriched-ids CE1,CE3,CE6 \\
+      --results-dir /app/tests/results/smoke_tests \\
+      --results-tag smoke
+
+Orquestado por:
+  tests/run_comparison.sh       → suite completa, guarda en tests/results/full_tests/
+  tests/run_smoke_comparison.sh → subconjunto ~25%, guarda en tests/results/smoke_tests/
 """
 
 import argparse
@@ -604,13 +630,20 @@ def print_summary(judge_name: str, scores: dict):
 # Guardado de resultados
 # ---------------------------------------------------------------------------
 
-def save_results(judge_name: str, results: list, scores: dict):
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+def save_results(judge_name: str, results: list, scores: dict, suite_label: str = "", results_dir: Path = None, suite_tag: str = "full"):
+    out_dir = results_dir or RESULTS_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     safe_name = judge_name.replace("/", "_").replace(":", "_")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"quality_{safe_name}_{timestamp}.json"
-    filepath = RESULTS_DIR / filename
+    if suite_tag == "smoke":
+        filename = f"smoke_quality_{suite_label}_{safe_name}_{timestamp}.json"
+        suite_field = f"smoke_quality_{suite_label}"
+    else:
+        label_part = f"_{suite_label}" if suite_label else ""
+        filename = f"quality_{safe_name}{label_part}_{timestamp}.json"
+        suite_field = None
+    filepath = out_dir / filename
 
     output = {
         "judge": judge_name,
@@ -620,6 +653,8 @@ def save_results(judge_name: str, results: list, scores: dict):
         "scores": scores,
         "results": results,
     }
+    if suite_field:
+        output["suite"] = suite_field
 
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
@@ -670,7 +705,32 @@ def main():
             "'all' = ambas (default)"
         ),
     )
+    parser.add_argument(
+        "--base-ids",
+        default=None,
+        help="IDs de la suite base separados por coma. Sin valor = todos los casos.",
+    )
+    parser.add_argument(
+        "--enriched-ids",
+        default=None,
+        help="IDs de la suite enriquecida separados por coma. Sin valor = todos los casos.",
+    )
+    parser.add_argument(
+        "--results-dir",
+        default=None,
+        help="Directorio donde guardar los JSON de resultados (default: tests/results)",
+    )
+    parser.add_argument(
+        "--results-tag",
+        choices=["full", "smoke"],
+        default="full",
+        help="Etiqueta de suite: 'smoke' añade el prefijo smoke_ al nombre del archivo.",
+    )
     args = parser.parse_args()
+
+    base_ids = set(args.base_ids.split(",")) if args.base_ids else None
+    enriched_ids = set(args.enriched_ids.split(",")) if args.enriched_ids else None
+    results_dir = Path(args.results_dir) if args.results_dir else None
 
     print(f"\n  Verificando servicio en {args.base_url}...")
     try:
@@ -693,26 +753,32 @@ def main():
         # --- Suite base (sin additional_context) ---
         if args.suite in ("base", "all"):
             data = load_test_cases()
+            base_cases = data["test_cases"]
+            if base_ids:
+                base_cases = [t for t in base_cases if t["id"] in base_ids]
             results_base, wall_base = run_suite(
                 client, args.base_url,
-                data["financial_context"], data["test_cases"],
+                data["financial_context"], base_cases,
                 judge, "CALIDAD BASE",
             )
             scores_base = calculate_scores(results_base, wall_base)
             print_summary(f"{judge_name} [base]", scores_base)
-            save_results(f"{judge_name}_base", results_base, scores_base)
+            save_results(judge_name, results_base, scores_base, suite_label="base", results_dir=results_dir, suite_tag=args.results_tag)
 
         # --- Suite enriquecida (con additional_context) ---
         if args.suite in ("enriched", "all"):
             enriched = load_enriched_test_cases()
+            enriched_cases = enriched["test_cases"]
+            if enriched_ids:
+                enriched_cases = [t for t in enriched_cases if t["id"] in enriched_ids]
             results_enriched, wall_enriched = run_suite(
                 client, args.base_url,
-                enriched["financial_context"], enriched["test_cases"],
+                enriched["financial_context"], enriched_cases,
                 judge, "CALIDAD CON CONTEXTO ENRIQUECIDO",
             )
             scores_enriched = calculate_scores(results_enriched, wall_enriched)
             print_summary(f"{judge_name} [enriched]", scores_enriched)
-            save_results(f"{judge_name}_enriched", results_enriched, scores_enriched)
+            save_results(judge_name, results_enriched, scores_enriched, suite_label="enriched", results_dir=results_dir, suite_tag=args.results_tag)
 
 
 if __name__ == "__main__":
