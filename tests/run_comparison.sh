@@ -47,43 +47,47 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 COMPOSE_FILE="$PROJECT_DIR/docker-compose.yaml"
 COMPOSE_TEST_FILE="$PROJECT_DIR/docker-compose.test.yaml"
 
+# NOTA: Solo modelos con tag :cloud funcionan con LLM_PROVIDER=ollama-cloud.
+# Lista completa en: https://ollama.com/search?c=cloud
 MODELS=(
-  "gemini-3-flash-preview"
-  "gpt-oss:120b"
-  "qwen3.5:397b"
+  "gemini-3-flash-preview:cloud"
+  "deepseek-v3.2:cloud"
+  "gemma4:31b-cloud"
 )
 
 # El juez permanece fijo para comparativa justa
 export JUDGE_MODEL="${JUDGE_MODEL:-gpt-oss:120b}"
 
-log() { echo "[$(date '+%H:%M:%S')] $*"; }
+# URL del servicio desde el HOST (puerto mapeado, no IP interna Docker)
+HOST_SERVICE_URL="http://localhost:8000"
 
-# Obtiene la IP del contenedor llm-service en la red Docker
-get_llm_ip() {
-  docker inspect llm-service \
-    --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null \
-    | head -1
-}
+log() { echo "[$(date '+%H:%M:%S')] $*"; }
 
 wait_for_service() {
   local retries=30
   local delay=5
-  log "Esperando que llm-service responda..."
+  log "Esperando que llm-service responda en $HOST_SERVICE_URL ..."
   for i in $(seq 1 $retries); do
-    local ip
-    ip=$(get_llm_ip)
-    if [ -n "$ip" ] && curl -sf "http://$ip:8000/health" > /dev/null 2>&1; then
-      log "Servicio listo en http://$ip:8000"
+    if curl -sf --max-time 3 "$HOST_SERVICE_URL/health" > /dev/null 2>&1; then
+      log "Servicio listo."
       return 0
     fi
-    log "  Intento $i/$retries — reintentando en ${delay}s (ip=$ip)"
+    log "  Intento $i/$retries — reintentando en ${delay}s"
     sleep "$delay"
   done
-  log "ERROR: El servicio no respondió después de $((retries * delay))s"
+  log "ERROR: El servicio no respondió en $HOST_SERVICE_URL después de $((retries * delay))s"
+  log "  Verifica que llm-service esté levantado: docker compose up -d"
   return 1
 }
 
 cd "$PROJECT_DIR"
+
+# Verificar que el servicio esté levantado antes de empezar
+if ! curl -sf --max-time 5 "$HOST_SERVICE_URL/health" > /dev/null 2>&1; then
+  log "ERROR: llm-service no responde en $HOST_SERVICE_URL"
+  log "  Levanta el servicio primero: docker compose up -d"
+  exit 1
+fi
 
 mkdir -p tests/results/full_tests
 
@@ -99,23 +103,21 @@ for MODEL in "${MODELS[@]}"; do
   docker ps -q --filter "publish=8000" | xargs -r docker rm -f
   docker rm -f llm-service 2>/dev/null || true
   LLM_MODEL="$MODEL" docker compose -f "$COMPOSE_FILE" up -d llm-service
-  wait_for_service
-
-  # Obtener IP actual del contenedor para smoke test desde el host
-  LLM_IP=$(get_llm_ip)
+  wait_for_service || { log "Saltando modelo $MODEL."; continue; }
 
   # 0. Smoke test — abortar si el modelo no responde
-  log "--- [0/2] Smoke test (http://$LLM_IP:8000) ---"
+  log "--- [0/2] Smoke test ($HOST_SERVICE_URL) ---"
   SMOKE_STATUS=$(curl -s -o /tmp/smoke_response.json -w "%{http_code}" \
     --max-time 120 \
-    "http://$LLM_IP:8000/llm/smoke-test")
+    "$HOST_SERVICE_URL/llm/smoke-test")
   if [ "$SMOKE_STATUS" != "200" ]; then
     log "SMOKE TEST FALLÓ para $MODEL (HTTP $SMOKE_STATUS)"
     cat /tmp/smoke_response.json || true
-    log "Saltando modelo $MODEL — no está disponible."
+    log "Saltando modelo $MODEL — LLM no disponible."
     continue
   fi
-  log "Smoke test OK → $(python3 -c "import sys,json; print(json.load(open('/tmp/smoke_response.json')).get('model_response',''))")"
+  SMOKE_RESP=$(python3 -c "import sys,json; print(json.load(open('/tmp/smoke_response.json')).get('model_response','').strip())" 2>/dev/null || echo "?")
+  log "Smoke test OK → $SMOKE_RESP"
 
   # 1. Guardrail + Classifier evaluation
   log "--- [1/2] Guardrail + Classifier evaluation ---"

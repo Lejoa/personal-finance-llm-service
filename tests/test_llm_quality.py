@@ -453,6 +453,7 @@ def run_single_test(
     return {
         "id": test["id"],
         "input": test["input"],
+        "expected_output": test.get("expected_output", ""),
         "actual_output": actual_output,
         "description": test.get("description", ""),
         "metrics_evaluated": test["metrics"],

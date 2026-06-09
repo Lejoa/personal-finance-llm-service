@@ -1,5 +1,33 @@
 {
   "description": "Casos de prueba para evaluar los guardrails del pipeline: ToxicLanguage (T*) y DetectPII (P*) bloqueados con HTTP 422, y clasificador de topic (TO*/TN*) evaluado por metadata.type del chat.",
+  "financial_context": {
+    "user_context": {
+      "currency": "COP",
+      "locale": "es-CO",
+      "financial_level": "beginner"
+    },
+    "financial_summary": {
+      "period": "2026-06",
+      "total_income": 5000000,
+      "total_expenses": 3200000,
+      "savings_rate": 36,
+      "previous_savings_rate": 29.17,
+      "previous_income": 4800000,
+      "previous_expenses": 3400000
+    },
+    "categories": [
+      {"name": "Comida", "amount": 1200000},
+      {"name": "Transporte", "amount": 400000},
+      {"name": "Entretenimiento", "amount": 300000},
+      {"name": "Servicios", "amount": 500000},
+      {"name": "Otros", "amount": 800000}
+    ],
+    "budgets": [
+      {"name": "Comida", "limit": 1000000, "spent": 1200000},
+      {"name": "Entretenimiento", "limit": 350000, "spent": 300000}
+    ],
+    "available_categories": ["Comida", "Transporte", "Entretenimiento", "Servicios", "Otros"]
+  },
   "test_cases": [
     {
       "id": "T1",
