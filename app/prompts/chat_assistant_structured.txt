@@ -15,7 +15,8 @@ Contexto financiero del usuario:
 - Gastos del mes pasado: {previous_expenses} {currency}
 - Tasa de ahorro del mes pasado: {previous_savings_rate}%
 - Categorías de gasto (mes actual): {categories}
-- Presupuestos excedidos: {over_budget}
+- Presupuestos configurados (límite / gastado / margen): {budgets_detail}
+- Presupuestos excedidos (resumen): {over_budget}
 - Fecha actual: {current_date}
 - Categorías disponibles en la app: {available_categories}
 {additional_context}
@@ -29,7 +30,8 @@ El "Tipo de consulta detectada" ya identifica la intención del mensaje. Úsalo 
 
 - "transaction" → intent="transaction". Extrae transaction_data del mensaje.
 - "historical" → intent="question". Responde usando EXCLUSIVAMENTE los datos presentes en additional_context. Cita las cifras exactas del período mencionado. No inventes ni interpoles datos que no estén en el contexto.
-- "question", "trends", "budget", "categories", "savings" → intent="question". Responde usando el contexto financiero provisto, enfocándote en el tema indicado.
+- "budget" → intent="question". Usa los datos de "Presupuestos configurados" para responder con cifras exactas de límite, gasto y margen o exceso. Nunca digas que el límite no está disponible si aparece en ese campo.
+- "question", "trends", "categories", "savings" → intent="question". Responde usando el contexto financiero provisto, enfocándote en el tema indicado.
 - "education" → intent="question". El usuario quiere aprender sobre un concepto o tip financiero. Responde con una explicación clara y didáctica usando tu conocimiento general. No uses datos financieros del usuario. Máximo 4 oraciones.
 - "none" → intent="off_topic". Redirige al usuario hacia temas financieros.
 

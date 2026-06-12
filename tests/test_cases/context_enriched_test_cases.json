@@ -147,7 +147,7 @@
     {
       "id": "CE6",
       "context_type": "historical",
-      "metrics": ["answer_relevancy", "faithfulness"],
+      "metrics": ["answer_relevancy", "faithfulness", "contextual_recall"],
       "input": "¿Cuánto gasté en enero?",
       "additional_context_data": {
         "type": "totals",
@@ -175,7 +175,7 @@
     {
       "id": "CE8",
       "context_type": "historical",
-      "metrics": ["answer_relevancy", "faithfulness"],
+      "metrics": ["answer_relevancy", "faithfulness", "contextual_recall"],
       "input": "¿Cuánto gasté en comida en los últimos 3 meses?",
       "additional_context_data": {
         "type": "category",

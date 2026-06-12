@@ -232,11 +232,35 @@ async def chat(payload: ChatRequest):
         for c in payload.categories
     ])
 
+    cur = payload.user_context.currency
     over_budget_list = [
-        b.name for b in payload.budgets
+        (
+            f"{b.name} "
+            f"(límite {b.limit} {cur}, "
+            f"gastado {b.spent} {cur}, "
+            f"exceso {b.spent - b.limit} {cur})"
+        )
+        for b in payload.budgets
         if b.spent > b.limit
     ]
-    over_budget = ", ".join(over_budget_list) if over_budget_list else "Ninguno"
+    over_budget = "; ".join(over_budget_list) if over_budget_list else "Ninguno"
+
+    budgets_detail_list = []
+    for b in payload.budgets:
+        excess = b.spent - b.limit
+        if excess > 0:
+            budgets_detail_list.append(
+                f"{b.name}: límite {b.limit} {cur}, "
+                f"gastado {b.spent} {cur}, "
+                f"excedido en {excess} {cur}"
+            )
+        else:
+            budgets_detail_list.append(
+                f"{b.name}: límite {b.limit} {cur}, "
+                f"gastado {b.spent} {cur}, "
+                f"disponible {b.limit - b.spent} {cur}"
+            )
+    budgets_detail = "; ".join(budgets_detail_list) if budgets_detail_list else "Sin presupuestos configurados"
 
     history_messages = []
     for turn in (payload.conversation_history or []):
@@ -264,6 +288,7 @@ async def chat(payload: ChatRequest):
             "currency": payload.user_context.currency,
             "categories": categories_str,
             "over_budget": over_budget,
+            "budgets_detail": budgets_detail,
             "current_date": date_type.today().isoformat(),
             "additional_context": payload.additional_context or "",
             "context_type": payload.context_type or "none",
@@ -410,6 +435,7 @@ async def _handle_education(payload: ChatRequest, guardrails) -> ChatResponse:
             "currency": payload.user_context.currency,
             "categories": "",
             "over_budget": "Ninguno",
+            "budgets_detail": "Sin presupuestos configurados",
             "current_date": date_type.today().isoformat(),
             "additional_context": "",
             "context_type": "education",

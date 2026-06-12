@@ -1,0 +1,368 @@
+{
+  "judge": "ollama-cloud/gpt-oss:120b",
+  "model": "gemini-3-flash-preview:cloud",
+  "threshold": 0.7,
+  "timestamp": "2026-06-09T18:44:40.475195",
+  "scores": {
+    "timing": {
+      "llm": {
+        "avg_ms": 3777.11,
+        "min_ms": 2447.69,
+        "max_ms": 6522.23,
+        "p95_ms": 6522.23
+      },
+      "judge": {
+        "avg_ms": 15744.37,
+        "min_ms": 1270.3,
+        "max_ms": 45638.02,
+        "total_ms": 157443.7
+      },
+      "total": {
+        "avg_ms": 19521.48,
+        "wall_time_ms": 195218.97
+      },
+      "avg_ms": 3777.11,
+      "min_ms": 2447.69,
+      "max_ms": 6522.23,
+      "p95_ms": 6522.23
+    },
+    "overall": {
+      "total": 10,
+      "passed": 9,
+      "errors": 0,
+      "score_pct": 90.0
+    },
+    "per_metric": {
+      "answer_relevancy": {
+        "label": "AnswerRelevancy",
+        "evaluated": 5,
+        "passed": 5,
+        "avg_score": 1.0,
+        "pass_rate_pct": 100.0
+      },
+      "faithfulness": {
+        "label": "Faithfulness",
+        "evaluated": 6,
+        "passed": 6,
+        "avg_score": 0.9583,
+        "pass_rate_pct": 100.0
+      },
+      "contextual_relevancy": {
+        "label": "ContextualRelevancy",
+        "evaluated": 3,
+        "passed": 3,
+        "avg_score": 1.0,
+        "pass_rate_pct": 100.0
+      },
+      "contextual_recall": {
+        "label": "ContextualRecall",
+        "evaluated": 2,
+        "passed": 2,
+        "avg_score": 1.0,
+        "pass_rate_pct": 100.0
+      },
+      "contextual_precision": {
+        "label": "ContextualPrecision",
+        "evaluated": 1,
+        "passed": 1,
+        "avg_score": 1.0,
+        "pass_rate_pct": 100.0
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "Q5",
+      "input": "Dame un resumen de mi situación financiera de este mes",
+      "expected_output": "En febrero tuviste ingresos de 5.000.000 COP, gastos de 3.200.000 COP y una tasa de ahorro del 36%. Tu mayor gasto fue Comida con 1.200.000 COP, presupuesto que excediste en 200.000 COP.",
+      "actual_output": "Este mes has ingresado 5,000,000 COP y gastado 3,200,000 COP, lo que corresponde a una tasa de ahorro del 36%. En la categoría Comida superaste el límite en 200,000 COP, mientras que en Entretenimiento aún tienes 50,000 COP disponibles. En total, tus gastos están 200,000 COP por encima del presupuesto de Comida, pero mantienes un ahorro positivo.",
+      "description": "question: pregunta integral que sintetiza todos los datos del contexto base — cubre todas las métricas",
+      "metrics_evaluated": [
+        "answer_relevancy",
+        "faithfulness",
+        "contextual_relevancy",
+        "contextual_recall",
+        "contextual_precision"
+      ],
+      "llm_time_ms": 4743.42,
+      "judge_time_ms": 45638.02,
+      "total_time_ms": 50381.44,
+      "passed": true,
+      "metric_results": {
+        "AnswerRelevancyMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because the response fully addressed the request with no irrelevant content, earning the highest possible relevance.",
+          "judge_time_ms": 43209.56
+        },
+        "FaithfulnessMetric": {
+          "score": 0.75,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 0.75 because the actual output claims total expenses are only 200,000 COP above the Food budget, yet the retrieval context shows total expenses of 3,200,000 COP against a Food limit of 1,000,000 COP—a 2,200,000 COP overspend—so the statement contradicts the data.",
+          "judge_time_ms": 44055.08
+        },
+        "ContextualRelevancyMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because the retrieval context directly answers the request with a complete financial summary for the month, e.g., \"Período evaluado: febrero de 2026.\", \"Ingresos mensuales: 5.000.000 COP.\", \"Gastos totales: 3.200.000 COP...\", and \"Tasa de ahorro: 36% (1.800.000 COP ahorrados)\".",
+          "judge_time_ms": 45587.64
+        },
+        "ContextualRecallMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because each claim in the expected output matches nodes in the retrieval context (node 1 for \"febrero\", node 2 for \"Ingresos mensuales: 5.000.000\", node 3 for \"Gastos totales: 3.200.000\", node 4 for \"Tasa de ahorro: 36%\", and nodes 3/5 for the \"Comida\" expense and its 200.000 overrun), leaving no unsupported content.",
+          "judge_time_ms": 23080.4
+        },
+        "ContextualPrecisionMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because the five relevant nodes (ranks 1‑5) – e.g., node 1 says \"'Período evaluado: febrero de 2026.'\", node 2 notes \"'Ingresos mensuales: 5.000.000 COP.'\", node 3 details \"'Gastos totales: 3.200.000 COP...'\", node 4 gives \"'Tasa de ahorro: 36% ...'\" and node 5 mentions \"'Presupuesto de Comida excedido en 200.000 COP...'\" – all appear before the three irrelevant nodes (ranks 6‑8) whose reasons describe unused information. Since all relevant nodes are ranked higher than irrelevant ones, the maximum possible score of 1.00 is achieved.",
+          "judge_time_ms": 39204.85
+        }
+      }
+    },
+    {
+      "id": "Q17",
+      "input": "¿Qué regla financiera básica puedo aplicar con mi nivel de principiante?",
+      "expected_output": "Puedes aplicar la regla 50/30/20: destina el 50% (2.500.000 COP) a necesidades, el 30% (1.500.000 COP) a deseos y el 20% (1.000.000 COP) a ahorro. Con tu tasa actual del 36% ya superas esa meta.",
+      "actual_output": "Una regla básica para principiantes es la regla 50/30/20: destina el 50 % de tus ingresos a gastos esenciales, el 30 % a gastos personales y el 20 % a ahorro o pago de deudas. Prioriza siempre cubrir tus necesidades básicas antes de gastar en ocio. Automatiza el ahorro para que se realice sin que tengas que pensarlo cada mes.",
+      "description": "question: contextual_relevancy — el contexto debe aportar la regla financiera apropiada para el nivel del usuario",
+      "metrics_evaluated": [
+        "contextual_relevancy"
+      ],
+      "llm_time_ms": 3545.35,
+      "judge_time_ms": 13752.49,
+      "total_time_ms": 17297.84,
+      "passed": true,
+      "metric_results": {
+        "ContextualRelevancyMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because the retrieval context directly matches the query: it states \"El nivel financiero del usuario es principiante\" and offers the exact beginner rule \"La regla 50/30/20 es la recomendación estándar para principiantes: 50% necesidades, 30% deseos, 20% ahorro.\"",
+          "judge_time_ms": 13750.68
+        }
+      }
+    },
+    {
+      "id": "Q3",
+      "input": "¿Cuál es mi tasa de ahorro este mes?",
+      "expected_output": "Tu tasa de ahorro en febrero es del 36%, equivalente a 1.800.000 COP ahorrados de tus ingresos de 5.000.000 COP.",
+      "actual_output": "Tu tasa de ahorro este mes es 36.0%.",
+      "description": "savings: dato explícito en el contexto base — verifica que el LLM reporte correctamente sin alucinaciones",
+      "metrics_evaluated": [
+        "answer_relevancy",
+        "faithfulness"
+      ],
+      "llm_time_ms": 2745.78,
+      "judge_time_ms": 12670.13,
+      "total_time_ms": 15415.91,
+      "passed": true,
+      "metric_results": {
+        "AnswerRelevancyMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because the response was completely on point with no irrelevant statements, perfectly addressing the asked savings rate.",
+          "judge_time_ms": 12668.96
+        },
+        "FaithfulnessMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because there are no contradictions, indicating perfect faithfulness.",
+          "judge_time_ms": 11175.94
+        }
+      }
+    },
+    {
+      "id": "Q20",
+      "input": "¿Qué tan bien me va comparado con la meta de ahorro para principiantes?",
+      "expected_output": "Tu tasa de ahorro del 36% supera ampliamente la meta del 20% recomendada para principiantes. Estás ahorrando 1.800.000 COP, 800.000 COP más que el mínimo de 1.000.000 COP.",
+      "actual_output": "Tu tasa de ahorro este mes es 36%, superando la del mes pasado que fue 29.17%. Esto muestra que estás destinando una mayor proporción de tus ingresos al ahorro, lo cual es positivo para un objetivo de ahorro de principiante.",
+      "description": "savings: contextual_recall — el contexto debe contener la meta de referencia y el dato actual para comparar",
+      "metrics_evaluated": [
+        "contextual_recall"
+      ],
+      "llm_time_ms": 6522.23,
+      "judge_time_ms": 17281.78,
+      "total_time_ms": 23804.01,
+      "passed": true,
+      "metric_results": {
+        "ContextualRecallMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because sentence 1 is fully supported by node 1 (36% saving rate) and node 2 (20% beginner target), and sentence 2 is fully supported by node 5 (1.8M COP saved) together with node 4 (1M COP minimum).",
+          "judge_time_ms": 17280.4
+        }
+      }
+    },
+    {
+      "id": "Q4",
+      "input": "¿Qué presupuestos tengo excedidos?",
+      "expected_output": "El presupuesto de Comida está excedido en 200.000 COP: gastaste 1.200.000 COP de un límite de 1.000.000 COP.",
+      "actual_output": "El presupuesto excedido es el de Comida, con límite de 1000000.0 COP, gasto de 1200000.0 COP y un exceso de 200000.0 COP.",
+      "description": "budget: requiere comparar spent vs limit — verifica relevancia de respuesta y del contexto aportado",
+      "metrics_evaluated": [
+        "answer_relevancy",
+        "contextual_relevancy"
+      ],
+      "llm_time_ms": 4932.04,
+      "judge_time_ms": 16997.62,
+      "total_time_ms": 21929.66,
+      "passed": true,
+      "metric_results": {
+        "AnswerRelevancyMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because the output contained no irrelevant statements, fully addressing the question; it cannot be higher than the perfect score.",
+          "judge_time_ms": 16995.88
+        },
+        "ContextualRelevancyMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1 because the retrieval context directly answers the question, e.g., \"El presupuesto de Comida tiene un límite de 1.000.000 COP y se han gastado 1.200.000 COP, un exceso de 200.000 COP\" and \"Solo el presupuesto de Comida está excedido en el período actual.\"",
+          "judge_time_ms": 9851.49
+        }
+      }
+    },
+    {
+      "id": "Q13",
+      "input": "¿En cuánto excedí el presupuesto de comida?",
+      "expected_output": "Excediste el presupuesto de Comida en 200.000 COP: gastaste 1.200.000 COP con un límite de 1.000.000 COP.",
+      "actual_output": "Excediste el presupuesto de comida en 200000.0 COP.",
+      "description": "budget: faithfulness — pregunta aritmética directa, sin margen para alucinación",
+      "metrics_evaluated": [
+        "faithfulness"
+      ],
+      "llm_time_ms": 2447.69,
+      "judge_time_ms": 12894.24,
+      "total_time_ms": 15341.93,
+      "passed": true,
+      "metric_results": {
+        "FaithfulnessMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because there are no contradictions, showing the actual output perfectly aligns with the retrieval context and is completely faithful.",
+          "judge_time_ms": 12892.66
+        }
+      }
+    },
+    {
+      "id": "Q2",
+      "input": "¿En qué categoría gasté más este mes?",
+      "expected_output": "La categoría con mayor gasto en febrero fue Comida con 1.200.000 COP, representando el 37.5% del total de gastos.",
+      "actual_output": "Gastaste más en la categoría Comida, con 1,200,000 COP.",
+      "description": "categories: dato directo del contexto base — verifica relevancia y que no se inventen cifras",
+      "metrics_evaluated": [
+        "answer_relevancy",
+        "faithfulness"
+      ],
+      "llm_time_ms": 3445.17,
+      "judge_time_ms": 13167.99,
+      "total_time_ms": 16613.16,
+      "passed": true,
+      "metric_results": {
+        "AnswerRelevancyMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because the response directly answered the question without any irrelevant statements.",
+          "judge_time_ms": 13166.35
+        },
+        "FaithfulnessMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because there are no contradictions; the actual output perfectly aligns with the retrieval context. Great job!",
+          "judge_time_ms": 12643.81
+        }
+      }
+    },
+    {
+      "id": "Q11",
+      "input": "¿Cuánto gasté en servicios este mes?",
+      "expected_output": "Gastaste 500.000 COP en Servicios en febrero, lo que equivale al 15.6% de tus gastos totales.",
+      "actual_output": "Gastaste 500000.0 COP en servicios este mes.",
+      "description": "categories: faithfulness — verifica que el LLM no invente cifras para un gasto puntual de categoría",
+      "metrics_evaluated": [
+        "faithfulness"
+      ],
+      "llm_time_ms": 3235.85,
+      "judge_time_ms": 12875.86,
+      "total_time_ms": 16111.71,
+      "passed": true,
+      "metric_results": {
+        "FaithfulnessMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because there are no contradictions, indicating the actual output perfectly aligns with the retrieval context. Great job!",
+          "judge_time_ms": 12874.28
+        }
+      }
+    },
+    {
+      "id": "Q21",
+      "input": "Quiero registrar un gasto de 50.000 en comida del restaurante",
+      "expected_output": "Entendido, voy a registrar un gasto de $50.000 COP en Comida con el concepto 'restaurante'.",
+      "actual_output": "Gasto registrado correctamente.",
+      "description": "transaction: el LLM debe confirmar la intención de registrar el gasto y los datos extraídos (monto, categoría, concepto) sin inventar información",
+      "metrics_evaluated": [
+        "answer_relevancy",
+        "faithfulness"
+      ],
+      "llm_time_ms": 3380.64,
+      "judge_time_ms": 10895.27,
+      "total_time_ms": 14275.91,
+      "passed": true,
+      "metric_results": {
+        "AnswerRelevancyMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because the answer directly addressed the request to register a 50,000 expense for restaurant food with no irrelevant statements.",
+          "judge_time_ms": 10893.72
+        },
+        "FaithfulnessMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because there are no contradictions; the actual output perfectly matches the retrieval context. Great job!",
+          "judge_time_ms": 9242.29
+        }
+      }
+    },
+    {
+      "id": "Q22",
+      "input": "Agrega un ingreso de 2.500.000 por mi salario de este mes",
+      "expected_output": "Entendido, voy a registrar un ingreso de $2.500.000 COP por concepto de salario.",
+      "actual_output": "Ingreso registrado correctamente.",
+      "description": "transaction: answer_relevancy — el LLM debe confirmar el registro del ingreso reconociendo monto y concepto",
+      "metrics_evaluated": [
+        "answer_relevancy"
+      ],
+      "llm_time_ms": 2772.97,
+      "judge_time_ms": 1270.3,
+      "total_time_ms": 4043.27,
+      "passed": false,
+      "metric_results": {
+        "AnswerRelevancyMetric": {
+          "score": null,
+          "passed": false,
+          "error": "Connection error.",
+          "judge_time_ms": 1269.14
+        }
+      }
+    }
+  ]
+}

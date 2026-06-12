@@ -1,0 +1,294 @@
+{
+  "judge": "ollama-cloud/gpt-oss:120b",
+  "model": "deepseek-v3.2:cloud",
+  "threshold": 0.7,
+  "timestamp": "2026-06-09T19:00:12.344966",
+  "scores": {
+    "timing": {
+      "llm": {
+        "avg_ms": 4916.87,
+        "min_ms": 3329.44,
+        "max_ms": 6248.62,
+        "p95_ms": 6248.62
+      },
+      "judge": {
+        "avg_ms": 18052.94,
+        "min_ms": 14727.28,
+        "max_ms": 23898.46,
+        "total_ms": 126370.57
+      },
+      "total": {
+        "avg_ms": 22969.81,
+        "wall_time_ms": 160791.69
+      },
+      "avg_ms": 4916.87,
+      "min_ms": 3329.44,
+      "max_ms": 6248.62,
+      "p95_ms": 6248.62
+    },
+    "overall": {
+      "total": 7,
+      "passed": 7,
+      "errors": 0,
+      "score_pct": 100.0
+    },
+    "per_metric": {
+      "answer_relevancy": {
+        "label": "AnswerRelevancy",
+        "evaluated": 7,
+        "passed": 7,
+        "avg_score": 1.0,
+        "pass_rate_pct": 100.0
+      },
+      "faithfulness": {
+        "label": "Faithfulness",
+        "evaluated": 6,
+        "passed": 6,
+        "avg_score": 1.0,
+        "pass_rate_pct": 100.0
+      },
+      "contextual_recall": {
+        "label": "ContextualRecall",
+        "evaluated": 3,
+        "passed": 3,
+        "avg_score": 1.0,
+        "pass_rate_pct": 100.0
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "CE1",
+      "input": "¿Estoy gastando más que los meses anteriores?",
+      "expected_output": "En general sí. Este mes llevas $3.200.000 COP en gastos frente a $3.100.000 COP del mes anterior. Comida subió un 14.3% sobre su promedio de 3 meses y ya superó su presupuesto. Solo Transporte bajó un 7.0%.",
+      "actual_output": "Sí, este mes gastaste 3200000 COP, superando los 3100000 COP del mes pasado y el promedio de 3 meses de 3000000 COP. El exceso respecto al mes anterior es de 100000 COP.",
+      "description": "trends: el LLM debe usar el resumen del mes anterior, los deltas históricos de categorías y el estado de presupuestos del additional_context",
+      "metrics_evaluated": [
+        "answer_relevancy",
+        "faithfulness"
+      ],
+      "llm_time_ms": 5404.47,
+      "judge_time_ms": 23898.46,
+      "total_time_ms": 29302.93,
+      "passed": true,
+      "metric_results": {
+        "AnswerRelevancyMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because the answer fully addressed the question with no irrelevant content.",
+          "judge_time_ms": 12724.07
+        },
+        "FaithfulnessMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because there are no contradictions; the actual output perfectly aligns with the retrieval context.",
+          "judge_time_ms": 23891.22
+        }
+      }
+    },
+    {
+      "id": "CE3",
+      "input": "¿Cómo va mi presupuesto este mes?",
+      "expected_output": "Tu presupuesto de Comida ya está excedido al 120% con 18 días restantes. Entretenimiento está al 85.7%, en zona de riesgo de excederse antes de que termine el mes.",
+      "actual_output": "En la categoría Comida tienes un límite de 1.000.000 COP y ya has gastado 1.200.000 COP, superando el presupuesto en 200.000 COP. En Entretenimiento el límite es 350.000 COP y has gastado 300.000 COP, quedando un disponible de 50.000 COP. El resto de categorías no tienen presupuesto configurado.",
+      "description": "budget: el LLM debe usar los porcentajes de uso y días restantes del additional_context, que no están en el contexto base",
+      "metrics_evaluated": [
+        "answer_relevancy",
+        "faithfulness"
+      ],
+      "llm_time_ms": 6248.62,
+      "judge_time_ms": 14810.8,
+      "total_time_ms": 21059.42,
+      "passed": true,
+      "metric_results": {
+        "AnswerRelevancyMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because the response fully addressed the user's question about their budget with no irrelevant content.",
+          "judge_time_ms": 14809.37
+        },
+        "FaithfulnessMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because there are no contradictions, indicating perfect faithfulness to the retrieval context.",
+          "judge_time_ms": 13522.89
+        }
+      }
+    },
+    {
+      "id": "CE4",
+      "input": "¿Cuánto margen me queda en mis presupuestos activos?",
+      "expected_output": "En Comida no tienes margen: ya la excediste en $200.000 COP (120%). En Entretenimiento te quedan $50.000 COP disponibles (14.3%), aunque con 18 días el riesgo de excederse es real.",
+      "actual_output": "En el presupuesto de Entretenimiento le quedan 50000 COP de margen disponible. En el presupuesto de Comida no queda margen, está excedido en 200000 COP.",
+      "description": "budget: contextual_recall — el LLM debe cubrir ambos presupuestos usando los datos del additional_context (margen negativo en Comida, positivo en Entretenimiento)",
+      "metrics_evaluated": [
+        "answer_relevancy",
+        "contextual_recall"
+      ],
+      "llm_time_ms": 4421.69,
+      "judge_time_ms": 14727.28,
+      "total_time_ms": 19148.97,
+      "passed": true,
+      "metric_results": {
+        "AnswerRelevancyMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because the response directly answered the question about remaining margin in active budgets with no irrelevant content.",
+          "judge_time_ms": 14725.86
+        },
+        "ContextualRecallMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because sentence 1 directly matches node 1, and sentence 2 is fully covered by nodes 2 and 3, leaving no unsupported content.",
+          "judge_time_ms": 10239.82
+        }
+      }
+    },
+    {
+      "id": "CE5",
+      "input": "¿En qué categorías gasto más y cómo se comparan con meses anteriores?",
+      "expected_output": "Tu mayor gasto es Comida con $1.200.000 COP, por encima de su promedio de $1.050.000 (+14.3%). Le siguen Otros ($800.000) y Servicios ($500.000). Solo Transporte está por debajo de su promedio histórico (-7.0%).",
+      "actual_output": "Esta mes gastas más en Comida (1.200.000 COP), seguida de Otros (800.000 COP), Servicios (500.000 COP), Transporte (400.000 COP) y Entretenimiento (300.000 COP). En comparación con el promedio de los últimos tres meses, Comida está 150.000 COP por encima, Otros 50.000 COP por encima, Servicios 10.000 COP por encima, Transporte 30.000 COP por debajo y Entretenimiento 20.000 COP por encima del promedio.",
+      "description": "categories: el LLM debe usar el ranking con comparativa histórica del additional_context para dar una respuesta completa",
+      "metrics_evaluated": [
+        "answer_relevancy",
+        "faithfulness"
+      ],
+      "llm_time_ms": 5210.71,
+      "judge_time_ms": 17245.86,
+      "total_time_ms": 22456.57,
+      "passed": true,
+      "metric_results": {
+        "AnswerRelevancyMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because the response fully addressed the question with no irrelevant content, delivering a clear and on‑point answer.",
+          "judge_time_ms": 17244.36
+        },
+        "FaithfulnessMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because there are no contradictions; the actual output perfectly aligns with the retrieval context.",
+          "judge_time_ms": 15404.51
+        }
+      }
+    },
+    {
+      "id": "CE7",
+      "input": "¿Voy a poder ahorrar algo este mes?",
+      "expected_output": "Sí, la proyección indica un ahorro de $1.800.000 COP al final del mes (36%), mejor que el mes anterior (28%). Tu ritmo de $266.667 COP/día está dentro del rango esperado.",
+      "actual_output": "Sí, con ingresos de 5,000,000 COP y gastos proyectados de 3,200,000 COP, tendrás un ahorro estimado de 1,800,000 COP, lo que corresponde a una tasa de ahorro del 36%.",
+      "description": "savings: el LLM debe usar la proyección y velocidad de gasto del additional_context para responder con datos concretos",
+      "metrics_evaluated": [
+        "answer_relevancy",
+        "faithfulness"
+      ],
+      "llm_time_ms": 5137.5,
+      "judge_time_ms": 15163.26,
+      "total_time_ms": 20300.76,
+      "passed": true,
+      "metric_results": {
+        "AnswerRelevancyMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because the response directly answered the question about saving money this month with no irrelevant content.",
+          "judge_time_ms": 15161.7
+        },
+        "FaithfulnessMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because there are no contradictions; the actual output fully aligns with the retrieval context.",
+          "judge_time_ms": 8345.47
+        }
+      }
+    },
+    {
+      "id": "CE6",
+      "input": "¿Cuánto gasté en enero?",
+      "expected_output": "En enero de 2026 gastaste $3.100.000 COP en total. Tu mayor gasto fue Comida con $950.000 COP, seguida de Otros ($720.000 COP) y Entretenimiento ($570.000 COP). Tu tasa de ahorro ese mes fue del 35,4%.",
+      "actual_output": "En enero de 2026 gastaste 3.100.000 COP.",
+      "description": "historical (totals): el LLM debe usar EXCLUSIVAMENTE los datos del additional_context para informar el gasto total y el desglose de enero 2026",
+      "metrics_evaluated": [
+        "answer_relevancy",
+        "faithfulness",
+        "contextual_recall"
+      ],
+      "llm_time_ms": 3329.44,
+      "judge_time_ms": 18770.33,
+      "total_time_ms": 22099.77,
+      "passed": true,
+      "metric_results": {
+        "AnswerRelevancyMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because the response directly answered the question with no irrelevant statements.",
+          "judge_time_ms": 17761.73
+        },
+        "FaithfulnessMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because there are no contradictions; the actual output fully aligns with the retrieval context.",
+          "judge_time_ms": 18764.04
+        },
+        "ContextualRecallMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because the sole sentence is fully covered by nodes 1, 2 and 3 in the retrieval context.",
+          "judge_time_ms": 14351.79
+        }
+      }
+    },
+    {
+      "id": "CE8",
+      "input": "¿Cuánto gasté en comida en los últimos 3 meses?",
+      "expected_output": "En los últimos 3 meses gastaste $3.150.000 COP en Comida: $900.000 en febrero, $1.050.000 en marzo y $1.200.000 en abril. El gasto viene aumentando mes a mes.",
+      "actual_output": "En los últimos tres meses (febrero, marzo y abril de 2026) gastaste 3150000 COP en comida.",
+      "description": "historical (category): el LLM debe reportar el gasto por mes y el total del período usando EXCLUSIVAMENTE el additional_context",
+      "metrics_evaluated": [
+        "answer_relevancy",
+        "faithfulness",
+        "contextual_recall"
+      ],
+      "llm_time_ms": 4665.69,
+      "judge_time_ms": 21754.58,
+      "total_time_ms": 26420.27,
+      "passed": true,
+      "metric_results": {
+        "AnswerRelevancyMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because the response addressed the question directly with no irrelevant statements.",
+          "judge_time_ms": 21752.94
+        },
+        "FaithfulnessMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because there are no contradictions; the actual output perfectly aligns with the retrieval context. Great job!",
+          "judge_time_ms": 21131.19
+        },
+        "ContextualRecallMetric": {
+          "score": 1.0,
+          "threshold": 0.7,
+          "passed": true,
+          "reason": "The score is 1.00 because sentence 1 is fully covered by nodes 2‑4 (monthly food amounts), node 5 (total amount) and node 6 (increasing trend), with no missing evidence.",
+          "judge_time_ms": 20103.35
+        }
+      }
+    }
+  ]
+}

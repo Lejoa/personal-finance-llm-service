@@ -1,0 +1,266 @@
+{
+  "model": "gemma4:31b-cloud",
+  "timestamp": "2026-06-09T19:04:31.821741",
+  "scores": {
+    "timing": {
+      "avg_ms": 2454.7,
+      "min_ms": 1521.12,
+      "max_ms": 4499.59,
+      "p95_ms": 3667.9
+    },
+    "classifier": {
+      "passed": 20,
+      "total": 21,
+      "score_pct": 95.2,
+      "by_type": {
+        "transaction": {
+          "passed": 2,
+          "total": 2,
+          "score_pct": 100.0
+        },
+        "question": {
+          "passed": 2,
+          "total": 2,
+          "score_pct": 100.0
+        },
+        "trends": {
+          "passed": 2,
+          "total": 3,
+          "score_pct": 66.7
+        },
+        "budget": {
+          "passed": 3,
+          "total": 3,
+          "score_pct": 100.0
+        },
+        "categories": {
+          "passed": 3,
+          "total": 3,
+          "score_pct": 100.0
+        },
+        "savings": {
+          "passed": 3,
+          "total": 3,
+          "score_pct": 100.0
+        },
+        "none": {
+          "passed": 2,
+          "total": 2,
+          "score_pct": 100.0
+        }
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "CL1",
+      "message": "¿Estoy gastando más que el mes pasado?",
+      "description": "Comparación explícita con el mes anterior inmediato → trends",
+      "expected_context_type": "trends",
+      "actual_context_type": "trends",
+      "status_code": 200,
+      "response_time_ms": 3495.43,
+      "passed": true
+    },
+    {
+      "id": "CL2",
+      "message": "¿Cómo han cambiado mis gastos en los últimos meses?",
+      "description": "Historial de cambios temporales → trends",
+      "expected_context_type": "trends",
+      "actual_context_type": "historical",
+      "status_code": 200,
+      "response_time_ms": 3667.9,
+      "passed": false
+    },
+    {
+      "id": "CL3",
+      "message": "¿He mejorado o empeorado en mis finanzas respecto al mes anterior?",
+      "description": "Comparación directa con el mes anterior → trends",
+      "expected_context_type": "trends",
+      "actual_context_type": "trends",
+      "status_code": 200,
+      "response_time_ms": 2427.37,
+      "passed": true
+    },
+    {
+      "id": "CL4",
+      "message": "¿Cómo va mi presupuesto este mes?",
+      "description": "Consulta directa de estado del presupuesto → budget",
+      "expected_context_type": "budget",
+      "actual_context_type": "budget",
+      "status_code": 200,
+      "response_time_ms": 1760.82,
+      "passed": true
+    },
+    {
+      "id": "CL5",
+      "message": "¿Me estoy pasando del límite en alguna categoría?",
+      "description": "Consulta de exceso presupuestario → budget",
+      "expected_context_type": "budget",
+      "actual_context_type": "budget",
+      "status_code": 200,
+      "response_time_ms": 2341.0,
+      "passed": true
+    },
+    {
+      "id": "CL6",
+      "message": "¿Cuánto me queda disponible en mis presupuestos?",
+      "description": "Margen restante en presupuesto → budget",
+      "expected_context_type": "budget",
+      "actual_context_type": "budget",
+      "status_code": 200,
+      "response_time_ms": 1521.79,
+      "passed": true
+    },
+    {
+      "id": "CL7",
+      "message": "¿En qué categoría estoy gastando más?",
+      "description": "Ranking de categorías por gasto → categories",
+      "expected_context_type": "categories",
+      "actual_context_type": "categories",
+      "status_code": 200,
+      "response_time_ms": 1950.12,
+      "passed": true
+    },
+    {
+      "id": "CL8",
+      "message": "Muéstrame el desglose de mis gastos por categoría",
+      "description": "Solicitud de desglose por categoría → categories",
+      "expected_context_type": "categories",
+      "actual_context_type": "categories",
+      "status_code": 200,
+      "response_time_ms": 2069.29,
+      "passed": true
+    },
+    {
+      "id": "CL9",
+      "message": "¿Cuánto llevo gastado en comida este mes?",
+      "description": "Consulta de categoría específica → categories",
+      "expected_context_type": "categories",
+      "actual_context_type": "categories",
+      "status_code": 200,
+      "response_time_ms": 2843.43,
+      "passed": true
+    },
+    {
+      "id": "CL10",
+      "message": "¿Voy a poder ahorrar algo este mes?",
+      "description": "Proyección de capacidad de ahorro → savings",
+      "expected_context_type": "savings",
+      "actual_context_type": "savings",
+      "status_code": 200,
+      "response_time_ms": 2155.08,
+      "passed": true
+    },
+    {
+      "id": "CL11",
+      "message": "¿Cuánto me va a sobrar al final del mes si sigo gastando así?",
+      "description": "Proyección de sobrante fin de mes → savings",
+      "expected_context_type": "savings",
+      "actual_context_type": "savings",
+      "status_code": 200,
+      "response_time_ms": 1867.0,
+      "passed": true
+    },
+    {
+      "id": "CL12",
+      "message": "¿Cómo puedo mejorar mi ahorro?",
+      "description": "Consejo de mejora de ahorro con proyección → savings",
+      "expected_context_type": "savings",
+      "actual_context_type": "savings",
+      "status_code": 200,
+      "response_time_ms": 1777.28,
+      "passed": true
+    },
+    {
+      "id": "CL13",
+      "message": "Gasté 50000 en almuerzo hoy",
+      "description": "Registro de gasto con monto identificable → transaction",
+      "expected_context_type": "transaction",
+      "actual_context_type": "transaction",
+      "status_code": 200,
+      "response_time_ms": 1982.9,
+      "passed": true
+    },
+    {
+      "id": "CL14",
+      "message": "Recibí mi salario de 5000000",
+      "description": "Registro de ingreso con monto → transaction",
+      "expected_context_type": "transaction",
+      "actual_context_type": "transaction",
+      "status_code": 200,
+      "response_time_ms": 1872.05,
+      "passed": true
+    },
+    {
+      "id": "CL15",
+      "message": "¿Cuánto gasté este mes?",
+      "description": "Pregunta general respondible con contexto base → question",
+      "expected_context_type": "question",
+      "actual_context_type": "question",
+      "status_code": 200,
+      "response_time_ms": 1739.99,
+      "passed": true
+    },
+    {
+      "id": "CL16",
+      "message": "¿Cuál es mi tasa de ahorro actual?",
+      "description": "Dato disponible en el contexto base → question",
+      "expected_context_type": "question",
+      "actual_context_type": "question",
+      "status_code": 200,
+      "response_time_ms": 3159.64,
+      "passed": true
+    },
+    {
+      "id": "CL17",
+      "message": "¿Cuánto es 2 más 2?",
+      "description": "Pregunta completamente fuera de finanzas personales → none",
+      "expected_context_type": "none",
+      "actual_context_type": "none",
+      "status_code": 200,
+      "response_time_ms": 1901.25,
+      "passed": true
+    },
+    {
+      "id": "CL18",
+      "message": "Recomiéndame una película",
+      "description": "Solicitud de entretenimiento sin relación financiera → none",
+      "expected_context_type": "none",
+      "actual_context_type": "none",
+      "status_code": 200,
+      "response_time_ms": 1521.12,
+      "passed": true
+    },
+    {
+      "id": "CL19",
+      "message": "¿Cuánto gasté en comida en abril?",
+      "description": "Mes específico del pasado con categoría → historical con period_hint",
+      "expected_context_type": "historical",
+      "actual_context_type": "historical",
+      "status_code": 200,
+      "response_time_ms": 3633.05,
+      "passed": true
+    },
+    {
+      "id": "CL20",
+      "message": "¿Cuánto gané en los últimos 3 meses?",
+      "description": "Rango relativo de meses → historical con period_hint calculado",
+      "expected_context_type": "historical",
+      "actual_context_type": "historical",
+      "status_code": 200,
+      "response_time_ms": 4499.59,
+      "passed": true
+    },
+    {
+      "id": "CL21",
+      "message": "¿Cuánto he ahorrado en total este año?",
+      "description": "Rango desde inicio del año en curso → historical con period_hint from YYYY-01",
+      "expected_context_type": "historical",
+      "actual_context_type": "historical",
+      "status_code": 200,
+      "response_time_ms": 3362.67,
+      "passed": true
+    }
+  ]
+}
